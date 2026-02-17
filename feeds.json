@@ -1,0 +1,206 @@
+{
+  "feeds": [
+    {
+      "name": "the_rundown_ai",
+      "sourceName": "the-rundown-ai",
+      "feedType": "newsletter",
+      "feedUrl": "https://www.therundown.ai/archive",
+      "format": "rss",
+      "httpUrl": "https://rss.app/feeds/Kc554BCmk9PUValj.xml",
+      "category": "newsletter",
+      "enabled": false
+    },
+    {
+      "name": "the_neuron",
+      "sourceName": "the-neuron",
+      "feedType": "newsletter",
+      "feedUrl": "https://www.theneurondaily.com/archive",
+      "format": "rss",
+      "httpUrl": "https://rss.app/feeds/e2QjBpEDLPfVUeoI.xml",
+      "category": "newsletter",
+      "enabled": false
+    },
+    {
+      "name": "futurepedia",
+      "sourceName": "futurepedia",
+      "feedType": "newsletter",
+      "feedUrl": "https://futurepedia.beehiiv.com/archive",
+      "format": "rss",
+      "httpUrl": "https://rss.app/feeds/x8T02B3GXYy18pNy.xml",
+      "category": "newsletter",
+      "enabled": false
+    },
+    {
+      "name": "superhuman",
+      "sourceName": "superhuman",
+      "feedType": "newsletter",
+      "feedUrl": "https://www.superhuman.ai/archive",
+      "format": "rss",
+      "httpUrl": "https://rss.app/feeds/3tDyvQwHp8cgL7qs.xml",
+      "category": "newsletter",
+      "enabled": false
+    },
+    {
+      "name": "taaft",
+      "sourceName": "taaft",
+      "feedType": "newsletter",
+      "feedUrl": "https://newsletter.theresanaiforthat.com/archive",
+      "format": "rss",
+      "httpUrl": "https://rss.beehiiv.com/feeds/22I6c0vJXV.xml",
+      "category": "newsletter",
+      "enabled": false
+    },
+    {
+      "name": "bens_bites",
+      "sourceName": "bens-bites",
+      "feedType": "newsletter",
+      "feedUrl": "https://bensbites.beehiiv.com/archive",
+      "format": "rss",
+      "httpUrl": "https://rss.app/feeds/O60XfEFYoxJhYVkS.xml",
+      "category": "newsletter",
+      "enabled": false
+    },
+    {
+      "name": "google_news",
+      "sourceName": "google-news",
+      "feedType": "article",
+      "feedUrl": "https://rss.app/feeds/v1.1/AkOariu1C7YyUUMv.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/AkOariu1C7YyUUMv.json",
+      "category": "json",
+      "enabled": true
+    },
+    {
+      "name": "hacker_news",
+      "sourceName": "hacker-news",
+      "feedType": "article",
+      "feedUrl": "https://rss.app/feeds/v1.1/jf3MZ9ZlVZhrVEjD.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/jf3MZ9ZlVZhrVEjD.json",
+      "category": "json",
+      "enabled": true
+    },
+    {
+      "name": "reddit_openai",
+      "sourceName": "reddit-openai",
+      "feedType": "subreddit",
+      "feedUrl": "https://rss.app/feeds/v1.1/1LDBacY8BC2qJaZh.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/1LDBacY8BC2qJaZh.json",
+      "subreddit": "OpenAI",
+      "category": "reddit",
+      "enabled": true
+    },
+    {
+      "name": "reddit_artificial_intelligence",
+      "sourceName": "reddit-ai",
+      "feedType": "subreddit",
+      "feedUrl": "https://rss.app/feeds/v1.1/F3rBf24jLxG6mNoJ.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/F3rBf24jLxG6mNoJ.json",
+      "subreddit": "ArtificialInteligence",
+      "category": "reddit",
+      "enabled": true
+    },
+    {
+      "name": "reddit_artificial",
+      "sourceName": "reddit-artificial",
+      "feedType": "subreddit",
+      "feedUrl": "https://rss.app/feeds/v1.1/upLgfm9lv7RXwzes.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/upLgfm9lv7RXwzes.json",
+      "subreddit": "artificial",
+      "category": "reddit",
+      "enabled": true
+    },
+    {
+      "name": "blog_openai",
+      "sourceName": "blog-open-ai",
+      "feedType": "article",
+      "feedUrl": "https://rss.app/feeds/v1.1/6BnoYYEtnCHXfHj0.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/6BnoYYEtnCHXfHj0.json",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_nvidia",
+      "sourceName": "blog-nvidia-ai",
+      "feedType": "article",
+      "feedUrl": "https://rss.app/feeds/v1.1/rXJrh1u8zDwJLUJK.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/rXJrh1u8zDwJLUJK.json",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_google_ai",
+      "sourceName": "blog-google",
+      "feedType": "article",
+      "feedUrl": "https://rss.app/feeds/v1.1/2CtvCsOtZS35jJgp.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/2CtvCsOtZS35jJgp.json",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_anthropic",
+      "sourceName": "blog-anthropic",
+      "feedType": "article",
+      "feedUrl": "https://rss.app/feeds/v1.1/OFdSUsziElw0rkpx.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/OFdSUsziElw0rkpx.json",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_cloudflare",
+      "sourceName": "blog-cloudflare",
+      "feedType": "article",
+      "feedUrl": "https://rss.app/feeds/v1.1/iLzlJfBHVV0phe2n.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/iLzlJfBHVV0phe2n.json",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_meta",
+      "sourceName": "blog-meta",
+      "feedType": "article",
+      "feedUrl": "https://rss.app/feeds/v1.1/zqVI3dZrdbmZjbR8.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/zqVI3dZrdbmZjbR8.json",
+      "category": "blog",
+      "enabled": true
+    }
+  ],
+  "domainSourceMap": {
+    "engadget.com": "engadget",
+    "gizmodo.com": "gizmodo",
+    "techcrunch.com": "techcrunch",
+    "theverge.com": "the-verge",
+    "cnbc.com": "cnbc",
+    "forbes.com": "forbes",
+    "tradingview.com": "trading-view",
+    "economist.com": "economist",
+    "tomshardware.com": "toms-hardware",
+    "seekingalpha.com": "seeking-alpha",
+    "fool.com": "the-motley-fool",
+    "sherwood.news": "sherwood-news",
+    "theregister.com": "the-register",
+    "yahoo.com": "yahoo",
+    "finance.yahoo.com": "yahoo-finance",
+    "venturebeat.com": "venture-beat",
+    "theguardian.com": "the-guardian",
+    "spectrum.ieee.org": "spectrum-ieee",
+    "fortune.com": "fortune",
+    "reuters.com": "reuters",
+    "bloomberg.com": "bloomberg",
+    "ft.com": "financial-times",
+    "nytimes.com": "the-new-york-times",
+    "computerworld.com": "computer-world",
+    "androidpolice.com": "android-police",
+    "scmp.com": "scmp",
+    "benzinga.com": "benzinga"
+  }
+}
