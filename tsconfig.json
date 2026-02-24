@@ -9,7 +9,8 @@
     "rootDir": "src",
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "preserve"
   },
   "include": ["src/**/*"]
 }

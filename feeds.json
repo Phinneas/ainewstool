@@ -1,66 +1,6 @@
 {
   "feeds": [
     {
-      "name": "the_rundown_ai",
-      "sourceName": "the-rundown-ai",
-      "feedType": "newsletter",
-      "feedUrl": "https://www.therundown.ai/archive",
-      "format": "rss",
-      "httpUrl": "https://rss.app/feeds/Kc554BCmk9PUValj.xml",
-      "category": "newsletter",
-      "enabled": false
-    },
-    {
-      "name": "the_neuron",
-      "sourceName": "the-neuron",
-      "feedType": "newsletter",
-      "feedUrl": "https://www.theneurondaily.com/archive",
-      "format": "rss",
-      "httpUrl": "https://rss.app/feeds/e2QjBpEDLPfVUeoI.xml",
-      "category": "newsletter",
-      "enabled": false
-    },
-    {
-      "name": "futurepedia",
-      "sourceName": "futurepedia",
-      "feedType": "newsletter",
-      "feedUrl": "https://futurepedia.beehiiv.com/archive",
-      "format": "rss",
-      "httpUrl": "https://rss.app/feeds/x8T02B3GXYy18pNy.xml",
-      "category": "newsletter",
-      "enabled": false
-    },
-    {
-      "name": "superhuman",
-      "sourceName": "superhuman",
-      "feedType": "newsletter",
-      "feedUrl": "https://www.superhuman.ai/archive",
-      "format": "rss",
-      "httpUrl": "https://rss.app/feeds/3tDyvQwHp8cgL7qs.xml",
-      "category": "newsletter",
-      "enabled": false
-    },
-    {
-      "name": "taaft",
-      "sourceName": "taaft",
-      "feedType": "newsletter",
-      "feedUrl": "https://newsletter.theresanaiforthat.com/archive",
-      "format": "rss",
-      "httpUrl": "https://rss.beehiiv.com/feeds/22I6c0vJXV.xml",
-      "category": "newsletter",
-      "enabled": false
-    },
-    {
-      "name": "bens_bites",
-      "sourceName": "bens-bites",
-      "feedType": "newsletter",
-      "feedUrl": "https://bensbites.beehiiv.com/archive",
-      "format": "rss",
-      "httpUrl": "https://rss.app/feeds/O60XfEFYoxJhYVkS.xml",
-      "category": "newsletter",
-      "enabled": false
-    },
-    {
       "name": "google_news",
       "sourceName": "google-news",
       "feedType": "article",
@@ -110,6 +50,39 @@
       "format": "json",
       "httpUrl": "https://rss.app/feeds/v1.1/upLgfm9lv7RXwzes.json",
       "subreddit": "artificial",
+      "category": "reddit",
+      "enabled": true
+    },
+    {
+      "name": "reddit_ai_memory",
+      "sourceName": "reddit-ai-memory",
+      "feedType": "subreddit",
+      "feedUrl": "https://rss.app/feeds/v1.1/tK1Zv2mLpQrXs9w5.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/tK1Zv2mLpQrXs9w5.json",
+      "subreddit": "AIMemory",
+      "category": "reddit",
+      "enabled": true
+    },
+    {
+      "name": "reddit_mcp",
+      "sourceName": "reddit-mcp",
+      "feedType": "subreddit",
+      "feedUrl": "https://rss.app/feeds/v1.1/nM7qP8sRtYuVw2z4.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/nM7qP8sRtYuVw2z4.json",
+      "subreddit": "mcp",
+      "category": "reddit",
+      "enabled": true
+    },
+    {
+      "name": "reddit_ai_news_trends",
+      "sourceName": "reddit-ai-news-trends",
+      "feedType": "subreddit",
+      "feedUrl": "https://rss.app/feeds/v1.1/jH4fK9nMwQpLr7x3.json",
+      "format": "json",
+      "httpUrl": "https://rss.app/feeds/v1.1/jH4fK9nMwQpLr7x3.json",
+      "subreddit": "AINewsAndTrends",
       "category": "reddit",
       "enabled": true
     },
@@ -172,6 +145,403 @@
       "httpUrl": "https://rss.app/feeds/v1.1/zqVI3dZrdbmZjbR8.json",
       "category": "blog",
       "enabled": true
+    },
+    {
+      "name": "blog_deepmind",
+      "sourceName": "blog-deepmind",
+      "feedType": "article",
+      "feedUrl": "https://deepmind.google/blog/feed/",
+      "format": "rss",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_aws_ml",
+      "sourceName": "blog-aws-ml",
+      "feedType": "article",
+      "feedUrl": "https://aws.amazon.com/blogs/machine-learning/feed/",
+      "format": "rss",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_cohere",
+      "sourceName": "blog-cohere",
+      "feedType": "article",
+      "feedUrl": "https://cohere-ai.ghost.io/rss/",
+      "format": "rss",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_apple_ml",
+      "sourceName": "blog-apple-ml",
+      "feedType": "article",
+      "feedUrl": "https://machinelearning.apple.com/rss.xml",
+      "format": "rss",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_microsoft_azure",
+      "sourceName": "blog-microsoft-azure",
+      "feedType": "article",
+      "feedUrl": "https://azure.microsoft.com/en-us/blog/feed/",
+      "format": "rss",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_lesswrong",
+      "sourceName": "lesswrong",
+      "feedType": "article",
+      "feedUrl": "https://www.lesswrong.com/feed.rss",
+      "format": "rss",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_paul_graham",
+      "sourceName": "paul-graham",
+      "feedType": "article",
+      "feedUrl": "http://www.aaronsw.com/2002/feeds/pgessays.rss",
+      "format": "rss",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_karpathy",
+      "sourceName": "karpathy",
+      "feedType": "article",
+      "feedUrl": "https://karpathy.bearblog.dev/feed/",
+      "format": "rss",
+      "category": "blog",
+      "enabled": true
+    },
+    {
+      "name": "blog_mistral",
+      "sourceName": "blog-mistral",
+      "feedType": "article",
+      "feedUrl": "https://mistral.ai/news",
+      "format": "scraped_page",
+      "category": "blog",
+      "enabled": true,
+      "articlePathPrefix": "/news/"
+    },
+    {
+      "name": "blog_together_ai",
+      "sourceName": "blog-together-ai",
+      "feedType": "article",
+      "feedUrl": "https://www.together.ai/blog/rss",
+      "format": "rss",
+      "category": "blog",
+      "enabled": false,
+      "disabledReason": "No RSS feed - Webflow site with no feed support"
+    },
+    {
+      "name": "blog_allenai",
+      "sourceName": "blog-allenai",
+      "feedType": "article",
+      "feedUrl": "https://allenai.org/blog",
+      "format": "scraped_page",
+      "category": "blog",
+      "enabled": true,
+      "articlePathPrefix": "/blog/"
+    },
+    {
+      "name": "substack_import_ai",
+      "sourceName": "import-ai",
+      "feedType": "newsletter",
+      "feedUrl": "https://importai.substack.com/feed",
+      "format": "rss",
+      "category": "substack",
+      "enabled": true
+    },
+    {
+      "name": "substack_ai_supremacy",
+      "sourceName": "ai-supremacy",
+      "feedType": "newsletter",
+      "feedUrl": "https://aisupremacy.substack.com/feed",
+      "format": "rss",
+      "category": "substack",
+      "enabled": true
+    },
+    {
+      "name": "substack_algorithmic_bridge",
+      "sourceName": "algorithmic-bridge",
+      "feedType": "newsletter",
+      "feedUrl": "https://thealgorithmicbridge.substack.com/feed",
+      "format": "rss",
+      "category": "substack",
+      "enabled": true
+    },
+    {
+      "name": "substack_ahead_of_ai",
+      "sourceName": "ahead-of-ai",
+      "feedType": "newsletter",
+      "feedUrl": "https://magazine.sebastianraschka.com/feed",
+      "format": "rss",
+      "category": "substack",
+      "enabled": true
+    },
+    {
+      "name": "substack_one_useful_thing",
+      "sourceName": "one-useful-thing",
+      "feedType": "newsletter",
+      "feedUrl": "https://www.oneusefulthing.org/feed",
+      "format": "rss",
+      "category": "substack",
+      "enabled": true
+    },
+    {
+      "name": "substack_interconnects",
+      "sourceName": "interconnects",
+      "feedType": "newsletter",
+      "feedUrl": "https://www.interconnects.ai/feed",
+      "format": "rss",
+      "category": "substack",
+      "enabled": true
+    },
+    {
+      "name": "substack_semianalysis",
+      "sourceName": "semianalysis",
+      "feedType": "newsletter",
+      "feedUrl": "https://www.semianalysis.com/feed",
+      "format": "rss",
+      "category": "substack",
+      "enabled": true
+    },
+    {
+      "name": "substack_ai_snake_oil",
+      "sourceName": "ai-snake-oil",
+      "feedType": "newsletter",
+      "feedUrl": "https://aisnakeoil.substack.com/feed",
+      "format": "rss",
+      "category": "substack",
+      "enabled": true
+    },
+    {
+      "name": "newsletter_tldr_ai",
+      "sourceName": "tldr-ai",
+      "feedType": "newsletter",
+      "feedUrl": "https://tldr.tech/api/rss/ai",
+      "format": "rss",
+      "category": "newsletter",
+      "enabled": true
+    },
+    {
+      "name": "newsletter_the_neuron",
+      "sourceName": "the-neuron",
+      "feedType": "newsletter",
+      "feedUrl": "https://www.theneurondaily.com/rss",
+      "format": "rss",
+      "category": "newsletter",
+      "enabled": false,
+      "disabledReason": "No RSS feed - beehiiv publisher has RSS disabled"
+    },
+    {
+      "name": "newsletter_mindstream",
+      "sourceName": "mindstream",
+      "feedType": "newsletter",
+      "feedUrl": "https://www.mindstream.news/rss",
+      "format": "rss",
+      "category": "newsletter",
+      "enabled": false,
+      "disabledReason": "No RSS feed - beehiiv publisher has RSS disabled"
+    },
+    {
+      "name": "news_nyt_technology",
+      "sourceName": "nyt-technology",
+      "feedType": "article",
+      "feedUrl": "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml",
+      "format": "rss",
+      "category": "news",
+      "enabled": false,
+      "disabledReason": "Firecrawl 403 - cannot scrape nytimes.com"
+    },
+    {
+      "name": "news_wsj_tech",
+      "sourceName": "wsj-tech",
+      "feedType": "article",
+      "feedUrl": "https://feeds.content.dowjones.io/public/rss/RSSWSJD",
+      "format": "rss",
+      "category": "news",
+      "enabled": false,
+      "disabledReason": "Paywalled - Firecrawl likely cannot scrape wsj.com"
+    },
+    {
+      "name": "news_wired_ai",
+      "sourceName": "wired-ai",
+      "feedType": "article",
+      "feedUrl": "https://www.wired.com/feed/tag/ai/latest/rss",
+      "format": "rss",
+      "category": "news",
+      "enabled": true
+    },
+    {
+      "name": "news_venturebeat_ai",
+      "sourceName": "venturebeat-ai",
+      "feedType": "article",
+      "feedUrl": "https://venturebeat.com/category/ai/feed/",
+      "format": "rss",
+      "category": "news",
+      "enabled": true
+    },
+    {
+      "name": "news_the_verge_ai",
+      "sourceName": "the-verge-ai",
+      "feedType": "article",
+      "feedUrl": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
+      "format": "rss",
+      "category": "news",
+      "enabled": true
+    },
+    {
+      "name": "news_techcrunch",
+      "sourceName": "techcrunch",
+      "feedType": "article",
+      "feedUrl": "https://techcrunch.com/feed/",
+      "format": "rss",
+      "category": "news",
+      "enabled": true
+    },
+    {
+      "name": "news_ars_technica",
+      "sourceName": "ars-technica",
+      "feedType": "article",
+      "feedUrl": "https://feeds.arstechnica.com/arstechnica/technology-lab",
+      "format": "rss",
+      "category": "news",
+      "enabled": true
+    },
+    {
+      "name": "news_fast_company_ai",
+      "sourceName": "fast-company-ai",
+      "feedType": "article",
+      "feedUrl": "https://www.fastcompany.com/section/artificial-intelligence/rss",
+      "format": "rss",
+      "category": "news",
+      "enabled": true
+    },
+    {
+      "name": "news_marktechpost",
+      "sourceName": "marktechpost",
+      "feedType": "article",
+      "feedUrl": "https://www.marktechpost.com/feed/",
+      "format": "rss",
+      "category": "news",
+      "enabled": true
+    },
+    {
+      "name": "news_mit_ai",
+      "sourceName": "mit-news-ai",
+      "feedType": "article",
+      "feedUrl": "https://news.mit.edu/topic/mitartificial-intelligence2-rss.xml",
+      "format": "rss",
+      "category": "news",
+      "enabled": true
+    },
+    {
+      "name": "tutorial_towards_data_science",
+      "sourceName": "towards-data-science",
+      "feedType": "tutorial",
+      "feedUrl": "https://towardsdatascience.com/feed",
+      "format": "rss",
+      "category": "tutorial",
+      "enabled": true
+    },
+    {
+      "name": "tutorial_towards_ai",
+      "sourceName": "towards-ai",
+      "feedType": "tutorial",
+      "feedUrl": "https://pub.towardsai.net/feed",
+      "format": "rss",
+      "category": "tutorial",
+      "enabled": true
+    },
+    {
+      "name": "tutorial_ml_mastery",
+      "sourceName": "ml-mastery",
+      "feedType": "tutorial",
+      "feedUrl": "https://machinelearningmastery.com/blog/feed/",
+      "format": "rss",
+      "category": "tutorial",
+      "enabled": true
+    },
+    {
+      "name": "tutorial_analytics_vidhya",
+      "sourceName": "analytics-vidhya",
+      "feedType": "tutorial",
+      "feedUrl": "https://www.analyticsvidhya.com/feed/",
+      "format": "rss",
+      "category": "tutorial",
+      "enabled": true
+    },
+    {
+      "name": "tutorial_huggingface_blog",
+      "sourceName": "huggingface",
+      "feedType": "tutorial",
+      "feedUrl": "https://huggingface.co/blog/feed.xml",
+      "format": "rss",
+      "category": "tutorial",
+      "enabled": true
+    },
+    {
+      "name": "tutorial_google_research",
+      "sourceName": "google-research",
+      "feedType": "tutorial",
+      "feedUrl": "https://research.google/blog/rss/",
+      "format": "rss",
+      "category": "tutorial",
+      "enabled": true
+    },
+    {
+      "name": "research_arxiv_ai_ml",
+      "sourceName": "arxiv-ai-ml",
+      "feedType": "research",
+      "feedUrl": "https://rss.arxiv.org/rss/cs.AI+cs.LG",
+      "format": "rss",
+      "category": "research",
+      "enabled": false,
+      "disabledReason": "Too many items (50-100+ papers/day) - overwhelms scraper"
+    },
+    {
+      "name": "research_arxiv_nlp",
+      "sourceName": "arxiv-nlp",
+      "feedType": "research",
+      "feedUrl": "https://rss.arxiv.org/rss/cs.CL",
+      "format": "rss",
+      "category": "research",
+      "enabled": false,
+      "disabledReason": "Too many items - overwhelms scraper"
+    },
+    {
+      "name": "research_bair_blog",
+      "sourceName": "bair-blog",
+      "feedType": "research",
+      "feedUrl": "https://bair.berkeley.edu/blog/feed.xml",
+      "format": "rss",
+      "category": "research",
+      "enabled": true
+    },
+    {
+      "name": "research_papers_with_code",
+      "sourceName": "papers-with-code",
+      "feedType": "research",
+      "feedUrl": "https://paperswithcode.com/latest/rss.xml",
+      "format": "rss",
+      "category": "research",
+      "enabled": true
+    },
+    {
+      "name": "research_stanford_hai",
+      "sourceName": "stanford-hai",
+      "feedType": "research",
+      "feedUrl": "https://hai.stanford.edu/news",
+      "format": "scraped_page",
+      "category": "research",
+      "enabled": true,
+      "articlePathPrefix": "/news/"
     }
   ],
   "domainSourceMap": {
@@ -201,6 +571,27 @@
     "computerworld.com": "computer-world",
     "androidpolice.com": "android-police",
     "scmp.com": "scmp",
-    "benzinga.com": "benzinga"
+    "benzinga.com": "benzinga",
+    "wired.com": "wired",
+    "arstechnica.com": "ars-technica",
+    "technologyreview.com": "mit-technology-review",
+    "fastcompany.com": "fast-company",
+    "marktechpost.com": "marktechpost",
+    "towardsdatascience.com": "towards-data-science",
+    "huggingface.co": "huggingface",
+    "machinelearningmastery.com": "ml-mastery",
+    "wsj.com": "wall-street-journal",
+    "news.mit.edu": "mit-news",
+    "deepmind.google": "deepmind",
+    "aws.amazon.com": "aws-machine-learning",
+    "cohere.com": "cohere",
+    "machinelearning.apple.com": "apple-ml",
+    "azure.microsoft.com": "microsoft-azure",
+    "lesswrong.com": "lesswrong",
+    "paulgraham.com": "paul-graham",
+    "paperswithcode.com": "papers-with-code",
+    "tldr.tech": "tldr-ai",
+    "aisnakeoil.substack.com": "ai-snake-oil",
+    "karpathy.bearblog.dev": "karpathy"
   }
 }

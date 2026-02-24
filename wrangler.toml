@@ -1,0 +1,168 @@
+# Cloudflare Workers Configuration for AI Newsletter Ingest
+name = "ainewsletter-ingest"
+main = "src/worker/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Queue bindings - producers to SEND messages
+[[queues.producers]]
+queue = "scrape-queue"
+binding = "SCRAPE_QUEUE"
+
+[[queues.producers]]
+queue = "evaluate-queue"
+binding = "EVALUATE_QUEUE"
+
+[[queues.producers]]
+queue = "upload-queue"
+binding = "UPLOAD_QUEUE"
+
+[[queues.producers]]
+queue = "generate-queue"
+binding = "GENERATE_QUEUE"
+
+[[queues.producers]]
+queue = "publish-queue"
+binding = "PUBLISH_QUEUE"
+
+# Queue bindings - consumers to PROCESS messages
+[[queues.consumers]]
+queue = "scrape-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+
+[[queues.consumers]]
+queue = "evaluate-queue"
+max_batch_size = 20
+max_batch_timeout = 30
+
+[[queues.consumers]]
+queue = "upload-queue"
+max_batch_size = 30
+max_batch_timeout = 30
+
+[[queues.consumers]]
+queue = "generate-queue"
+max_batch_size = 1
+max_batch_timeout = 60
+
+[[queues.consumers]]
+queue = "publish-queue"
+max_batch_size = 1
+max_batch_timeout = 30
+
+# R2 bucket for content storage (matches your current setup)
+[[r2_buckets]]
+binding = "CONTENT_BUCKET"
+bucket_name = "ainewsletter"
+
+# KV namespace for tracking state and deduplication
+[[kv_namespaces]]
+binding = "INGEST_STATE"
+id = "d858fcdf0fc84221908e17c523f05aa6"
+
+# Secrets (set via wrangler secret put)
+# - FIRECRAWL_API_KEY
+# - ANTHROPIC_API_KEY
+# - MISTRAL_API_KEY
+# - MOONSHOT_API_KEY
+# - EXA_API_KEY
+# - GHOST_ADMIN_API_KEY
+# - GHOST_API_URL
+
+# Enable observability (logs)
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+
+# Production environment
+[env.production]
+name = "ainewsletter-ingest-prod"
+
+# Production: Scheduled triggers
+crons = [
+  "0 7 * * *",   # Ingest every morning at 7am UTC
+  "0 19 * * *",  # Ingest every evening at 7pm UTC
+  "0 8 * * 3",   # Generate Wednesday 8am UTC
+  "0 8 * * 6",   # Generate Saturday 8am UTC
+]
+
+# Production: Enable observability
+[env.production.observability]
+enabled = true
+head_sampling_rate = 1
+
+[env.production.observability.logs]
+enabled = true
+head_sampling_rate = 1
+
+[[env.production.queues.producers]]
+queue = "scrape-queue"
+binding = "SCRAPE_QUEUE"
+
+[[env.production.queues.producers]]
+queue = "evaluate-queue"
+binding = "EVALUATE_QUEUE"
+
+[[env.production.queues.producers]]
+queue = "upload-queue"
+binding = "UPLOAD_QUEUE"
+
+[[env.production.queues.producers]]
+queue = "generate-queue"
+binding = "GENERATE_QUEUE"
+
+[[env.production.queues.producers]]
+queue = "publish-queue"
+binding = "PUBLISH_QUEUE"
+
+[[env.production.queues.consumers]]
+queue = "scrape-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+
+[[env.production.queues.consumers]]
+queue = "evaluate-queue"
+max_batch_size = 20
+max_batch_timeout = 30
+
+[[env.production.queues.consumers]]
+queue = "upload-queue"
+max_batch_size = 30
+max_batch_timeout = 30
+
+[[env.production.queues.consumers]]
+queue = "generate-queue"
+max_batch_size = 1
+max_batch_timeout = 60
+
+[[env.production.queues.consumers]]
+queue = "publish-queue"
+max_batch_size = 1
+max_batch_timeout = 30
+
+[[env.production.r2_buckets]]
+binding = "CONTENT_BUCKET"
+bucket_name = "ainewsletter"
+
+[[env.production.kv_namespaces]]
+binding = "INGEST_STATE"
+id = "d858fcdf0fc84221908e17c523f05aa6"
+
+# Development environment
+[env.dev]
+name = "ainewsletter-ingest-dev"
+crons = []  # Disable scheduled runs in dev
+
+# Dev: Enable observability
+[env.dev.observability]
+enabled = true
+head_sampling_rate = 1
+
+[env.dev.observability.logs]
+enabled = true
+head_sampling_rate = 1

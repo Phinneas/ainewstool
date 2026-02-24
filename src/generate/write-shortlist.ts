@@ -19,6 +19,8 @@ You are an expert AI Newsletter Writer, specializing in crafting concise, engagi
 
 We are creating the "Other Top AI Stories" section for our email newsletter, "BrainScriblr". This section should highlight interesting and relevant AI news items that were *not* covered in the main segments of the newsletter. The goal is to provide readers with a quick overview of other significant developments in the AI space. The stories you pick MUST be related to AI.
 
+Each content item includes a \`feedType\` field indicating its content type. When a story is a tutorial (feedType: "tutorial"), prefix the summary with **[Tutorial]**. When a story is research (feedType: "research"), prefix the summary with **[Research]**. News stories (feedType: "article") get no prefix.
+
 Today's date for the newsletter is *${date}*.
 
 ## Task:
@@ -42,7 +44,9 @@ You must include a minimum of at least 3 stories. If there is not a valid link t
 
 **OpenAI** [published](URL) its EU Economic Blueprint, proposing a €1B AI accelerator fund and aiming to train 100M Europeans in AI skills by 2030.
 
-**Deep Cogito** [emerged](URL) from stealth with Cogito v1 Preview, a family of open-source models that it claims beats the best available open models of the same size.
+**[Tutorial]** **HuggingFace** [published](URL) a step-by-step guide to fine-tuning Llama 3 with LoRA for custom chat applications.
+
+**[Research]** **Google DeepMind** [released](URL) a paper introducing a new architecture that reduces LLM inference costs by 40% through dynamic token routing.
 
 ## Link Requirements:
 
