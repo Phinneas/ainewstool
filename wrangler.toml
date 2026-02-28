@@ -4,6 +4,15 @@ main = "src/worker/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# Scheduled triggers (runs on Cloudflare, no computer needed)
+[triggers]
+crons = [
+  "0 7 * * *",   # Ingest every morning at 7am UTC
+  "0 19 * * *",  # Ingest every evening at 7pm UTC
+  "0 8 * * 3",   # Generate newsletter Wednesday 8am UTC
+  "0 8 * * 6",   # Generate newsletter Saturday 8am UTC
+]
+
 # Queue bindings - producers to SEND messages
 [[queues.producers]]
 queue = "scrape-queue"

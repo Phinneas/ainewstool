@@ -56,7 +56,14 @@ function markdownToBasicHtml(md: string): string {
     .replace(/<p><\/p>/g, "")
     .replace(/<p><hr><\/p>/g, "<hr>")
     .replace(/<p>(<h[1-3]>)/g, "$1")
-    .replace(/(<\/h[1-3]>)<\/p>/g, "$1");
+    .replace(/(<\/h[1-3]>)<\/p>/g, "$1")
+    // Fix list blocks wrapped in paragraphs (block elements can't be inside <p>)
+    .replace(/<p>(<ul>)/g, "$1")
+    .replace(/(<\/ul>)<\/p>/g, "$1")
+    // Remove spurious <br> tags inside lists produced by the \n→<br> pass
+    .replace(/(<\/li>)<br>/g, "$1")
+    .replace(/<br>(<li>)/g, "$1")
+    .replace(/<br>(<\/ul>)/g, "$1");
 }
 
 export async function sendNewsletterEmail(

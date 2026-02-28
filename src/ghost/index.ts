@@ -1,17 +1,13 @@
 import { log } from "../logger.js";
 
-const GHOST_API_URL = process.env.GHOST_API_URL;
-const GHOST_ADMIN_API_KEY = process.env.GHOST_ADMIN_API_KEY;
-const GHOST_CONTENT_API_KEY = process.env.GHOST_CONTENT_API_KEY;
-
-if (!GHOST_API_URL) {
-  throw new Error("GHOST_API_URL environment variable is not set");
-}
-if (!GHOST_ADMIN_API_KEY) {
-  throw new Error("GHOST_ADMIN_API_KEY environment variable is not set");
-}
-if (!GHOST_CONTENT_API_KEY) {
-  throw new Error("GHOST_CONTENT_API_KEY environment variable is not set");
+function getGhostEnv() {
+  const url = process.env.GHOST_API_URL;
+  const adminKey = process.env.GHOST_ADMIN_API_KEY;
+  const contentKey = process.env.GHOST_CONTENT_API_KEY;
+  if (!url) throw new Error("GHOST_API_URL environment variable is not set");
+  if (!adminKey) throw new Error("GHOST_ADMIN_API_KEY environment variable is not set");
+  if (!contentKey) throw new Error("GHOST_CONTENT_API_KEY environment variable is not set");
+  return { url, adminKey, contentKey };
 }
 
 /**
@@ -72,20 +68,35 @@ async function createGhostJwt(adminKey: string): Promise<string> {
 export async function createPost(
   postData: {
     title: string;
-    html: string;
+    html?: string;
+    mobiledoc?: string;
     status?: "draft" | "published";
     tags?: string[];
     feature_image?: string;
     custom_excerpt?: string;
   }
 ): Promise<string> {
-  const authHeader = await createGhostJwt(GHOST_ADMIN_API_KEY!);
-  const url = `${GHOST_API_URL!}/ghost/api/admin/posts/`;
+  const { url: GHOST_API_URL, adminKey: GHOST_ADMIN_API_KEY } = getGhostEnv();
+  const authHeader = await createGhostJwt(GHOST_ADMIN_API_KEY);
+  const url = `${GHOST_API_URL}/ghost/api/admin/posts/`;
 
   log.info("Creating Ghost CMS post", {
     title: postData.title,
     status: postData.status || "draft",
   });
+
+  const postBody: Record<string, unknown> = {
+    title: postData.title,
+    status: postData.status || "draft",
+    tags: postData.tags || [],
+    feature_image: postData.feature_image || null,
+    custom_excerpt: postData.custom_excerpt || null,
+  };
+  if (postData.mobiledoc) {
+    postBody.mobiledoc = postData.mobiledoc;
+  } else if (postData.html) {
+    postBody.html = postData.html;
+  }
 
   try {
     const response = await fetch(url, {
@@ -95,18 +106,7 @@ export async function createPost(
         Authorization: `Ghost ${authHeader}`,
         "Accept-Version": "v5.0",
       },
-      body: JSON.stringify({
-        posts: [
-          {
-            title: postData.title,
-            html: postData.html,
-            status: postData.status || "draft",
-            tags: postData.tags || [],
-            feature_image: postData.feature_image || null,
-            custom_excerpt: postData.custom_excerpt || null,
-          },
-        ],
-      }),
+      body: JSON.stringify({ posts: [postBody] }),
     });
 
     if (!response.ok) {
@@ -144,8 +144,9 @@ export async function getPosts(options: {
   include?: string[];
   filter?: string;
 }): Promise<any[]> {
-  const url = new URL(`${GHOST_API_URL!}/ghost/api/content/posts/`);
-  url.searchParams.append("key", GHOST_CONTENT_API_KEY!);
+  const { url: GHOST_API_URL, contentKey: GHOST_CONTENT_API_KEY } = getGhostEnv();
+  const url = new URL(`${GHOST_API_URL}/ghost/api/content/posts/`);
+  url.searchParams.append("key", GHOST_CONTENT_API_KEY);
 
   if (options.limit) url.searchParams.append("limit", options.limit.toString());
   if (options.page) url.searchParams.append("page", options.page.toString());
@@ -192,8 +193,9 @@ export async function updatePost(
     custom_excerpt?: string;
   }
 ): Promise<string> {
-  const authHeader = await createGhostJwt(GHOST_ADMIN_API_KEY!);
-  const url = `${GHOST_API_URL!}/ghost/api/admin/posts/${postId}/`;
+  const { url: GHOST_API_URL, adminKey: GHOST_ADMIN_API_KEY } = getGhostEnv();
+  const authHeader = await createGhostJwt(GHOST_ADMIN_API_KEY);
+  const url = `${GHOST_API_URL}/ghost/api/admin/posts/${postId}/`;
 
   log.info("Updating Ghost CMS post", { postId });
 
@@ -239,8 +241,9 @@ export async function updatePost(
  * Delete a post from Ghost CMS
  */
 export async function deletePost(postId: string): Promise<boolean> {
-  const authHeader = await createGhostJwt(GHOST_ADMIN_API_KEY!);
-  const url = `${GHOST_API_URL!}/ghost/api/admin/posts/${postId}/`;
+  const { url: GHOST_API_URL, adminKey: GHOST_ADMIN_API_KEY } = getGhostEnv();
+  const authHeader = await createGhostJwt(GHOST_ADMIN_API_KEY);
+  const url = `${GHOST_API_URL}/ghost/api/admin/posts/${postId}/`;
 
   log.info("Deleting Ghost CMS post", { postId });
 

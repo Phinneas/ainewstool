@@ -1,6 +1,8 @@
+import "dotenv/config";
 import { runIngestion } from "./ingest/index.js";
 import { generateNewsletter } from "./generate/index.js";
-import { sendNewsletterEmail } from "./email/send.js";
+import { sendNewsletterEmail, markdownToBasicHtml } from "./email/send.js";
+import { createPost } from "./ghost/index.js";
 import { log } from "./logger.js";
 import { writeFileSync, readFileSync } from "fs";
 
@@ -161,8 +163,60 @@ async function main() {
       break;
     }
 
+    case "ghost": {
+      const date = process.argv[3];
+      if (!date) {
+        log.error("Usage: tsx src/cli.ts ghost <YYYY-MM-DD> [newsletter-file-path]");
+        process.exit(1);
+      }
+
+      const newsletterPath = process.argv[4] ?? `newsletter-${date}.md`;
+      let newsletterContent: string;
+      try {
+        newsletterContent = readFileSync(newsletterPath, "utf-8");
+      } catch (err) {
+        log.error(`Could not read newsletter file: ${newsletterPath}`);
+        log.error("Hint: Run 'npm run generate' first to create the newsletter");
+        process.exit(1);
+      }
+
+      const lines = newsletterContent.split("\n");
+      const title = lines[0].replace(/^#\s+/, "").trim();
+      const excerpt = lines.slice(1).find((l) => l.trim() && !l.startsWith("#"))?.trim() ?? "";
+
+      if (!title) {
+        log.error("Could not parse title from newsletter (expected # Title as first line)");
+        process.exit(1);
+      }
+
+      log.info(`Pushing draft to Ghost: "${title}"`);
+      const bodyHtml = markdownToBasicHtml(newsletterContent);
+      // Mobiledoc with a single HTML card — Ghost v5's html field input is
+      // unreliable (silently drops content); mobiledoc HTML cards are stored as-is.
+      const mobiledoc = JSON.stringify({
+        version: "0.3.1",
+        atoms: [],
+        cards: [["html", { html: bodyHtml }]],
+        markups: [],
+        sections: [[10, 0]],
+      });
+
+      const postId = await createPost({
+        title,
+        mobiledoc,
+        status: "draft",
+        tags: ["newsletter", "AI"],
+        custom_excerpt: excerpt || undefined,
+      });
+
+      const ghostUrl = process.env.GHOST_API_URL;
+      console.log(`✅ Draft created! Post ID: ${postId}`);
+      console.log(`View in Ghost admin: ${ghostUrl}/ghost/#/editor/post/${postId}`);
+      break;
+    }
+
     default: {
-      console.log(`AI Newsletter CLI\n\nUsage:\n  tsx src/cli.ts ingest                          Fetch & process all RSS feeds\n  tsx src/cli.ts generate <YYYY-MM-DD> [prev]    Generate newsletter for a date\n  tsx src/cli.ts email <YYYY-MM-DD> <recipient>  Send generated newsletter via email\n\nArguments:\n  <YYYY-MM-DD>   Date to generate newsletter for (must have ingested content)\n  [prev]         Optional path to previous newsletter markdown (for dedup)\n  <recipient>    Email address to send newsletter to\n\nEnvironment:\n  Copy .env.example to .env and fill in your API keys.\n  Required for email: RESEND_API_KEY, NEWSLETTER_RECIPIENTS (comma-separated)`);
+      console.log(`AI Newsletter CLI\n\nUsage:\n  tsx src/cli.ts ingest                          Fetch & process all RSS feeds\n  tsx src/cli.ts generate <YYYY-MM-DD> [prev]    Generate newsletter for a date\n  tsx src/cli.ts ghost <YYYY-MM-DD> [file]       Push generated newsletter to Ghost as draft\n  tsx src/cli.ts email <YYYY-MM-DD> <recipient>  Send generated newsletter via email\n\nArguments:\n  <YYYY-MM-DD>   Date to generate newsletter for (must have ingested content)\n  [prev]         Optional path to previous newsletter markdown (for dedup)\n  <recipient>    Email address to send newsletter to\n\nEnvironment:\n  Copy .env.example to .env and fill in your API keys.\n  Required for email: RESEND_API_KEY, NEWSLETTER_RECIPIENTS (comma-separated)\n  Required for Ghost: GHOST_API_URL, GHOST_ADMIN_API_KEY, GHOST_CONTENT_API_KEY`);
       break;
     }
   }
