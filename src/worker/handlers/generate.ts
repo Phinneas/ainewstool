@@ -42,6 +42,8 @@ export async function handleGenerateQueue(
       process.env.ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY;
       process.env.MISTRAL_API_KEY = env.MISTRAL_API_KEY;
       process.env.MOONSHOT_API_KEY = env.MOONSHOT_API_KEY;
+      if (env.Exa) process.env.EXA_API_KEY = env.Exa;
+      if (env.TAVILY_API_KEY) process.env.TAVILY_API_KEY = env.TAVILY_API_KEY;
 
       // Fetch previous newsletter from KV for deduplication guidance
       const previousNewsletter = await env.INGEST_STATE.get('newsletter:previous') ?? undefined;

@@ -8,6 +8,8 @@ import { writeIntro } from "./write-intro.js";
 import { writeShortlist } from "./write-shortlist.js";
 import { assembleNewsletter } from "./assemble.js";
 import { fetchFeaturedMCP, formatFeaturedMCPSection } from "../ingest/featured-mcp.js";
+import { fetchAiForGoodStories, formatAiForGoodSection } from "./ai-for-good.js";
+import { fetchAiDiscoveries, formatAiDiscoveriesSection } from "./ai-discoveries.js";
 
 interface ContentEntry {
   identifier: string;
@@ -236,17 +238,27 @@ export async function generateNewsletter(
 
   shortlistTimer.end();
 
-  // Step 7: Fetch featured MCP (non-blocking — newsletter continues if this fails)
-  log.info("Fetching featured MCP...");
-  const featuredMCPTimer = log.timer("featured-mcp");
-  const featuredMCP = await fetchFeaturedMCP();
+  // Step 7: Fetch supplemental sections in parallel (non-blocking)
+  log.info("Fetching supplemental sections...");
+  const supplementalTimer = log.timer("supplemental-sections");
+  const [featuredMCP, aiForGoodStories, aiDiscoveryStories] = await Promise.all([
+    fetchFeaturedMCP(),
+    fetchAiForGoodStories(displayDate),
+    fetchAiDiscoveries(displayDate),
+  ]);
+  supplementalTimer.end();
+
   const featuredMCPSection = featuredMCP ? formatFeaturedMCPSection(featuredMCP) : undefined;
-  featuredMCPTimer.end();
-  if (featuredMCP) {
-    log.info(`Featured MCP: ${featuredMCP.name}`);
-  } else {
-    log.warn("No featured MCP available for this issue");
-  }
+  if (featuredMCP) log.info(`Featured MCP: ${featuredMCP.name}`);
+  else log.warn("No featured MCP available for this issue");
+
+  const aiForGoodSection = aiForGoodStories ? formatAiForGoodSection(aiForGoodStories) : undefined;
+  if (aiForGoodStories) log.info(`AI for Good: ${aiForGoodStories.length} stories`);
+  else log.warn("No AI for Good stories available for this issue");
+
+  const aiDiscoveriesSection = aiDiscoveryStories ? formatAiDiscoveriesSection(aiDiscoveryStories) : undefined;
+  if (aiDiscoveryStories) log.info(`AI Discoveries: ${aiDiscoveryStories.length} stories`);
+  else log.warn("No AI Discoveries available for this issue");
 
   // Step 8: Assemble final newsletter
   log.info("Assembling newsletter...");
@@ -257,6 +269,8 @@ export async function generateNewsletter(
     storySections,
     shortlist,
     featuredMCP: featuredMCPSection,
+    aiForGood: aiForGoodSection,
+    aiDiscoveries: aiDiscoveriesSection,
   });
 
   totalTimer.end();

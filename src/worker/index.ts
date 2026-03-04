@@ -29,6 +29,8 @@ export interface Env {
   ANTHROPIC_API_KEY: string;
   MISTRAL_API_KEY: string;
   MOONSHOT_API_KEY: string;
+  Exa?: string;
+  TAVILY_API_KEY?: string;
   REDDIT_CLIENT_ID?: string;
   REDDIT_CLIENT_SECRET?: string;
   GHOST_ADMIN_API_KEY: string;
