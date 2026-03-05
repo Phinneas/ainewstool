@@ -22,16 +22,7 @@ export interface EvaluateMessage {
   type: 'batch';
   items: Array<{
     item: any; // NormalizedFeedItem will be imported from original code
-    scrapeResult: {
-      content: string;
-      mainContentImageUrls: string[];
-      rawHtml: string;
-      links: string[];
-      metadata: {
-        url: string;
-        title: string;
-      };
-    };
+    scrapeKey: string; // KV key for the scrape result — avoids 128KB queue payload limit
   }>;
   batchId: string;
   timestamp: number;
@@ -41,16 +32,7 @@ export interface UploadMessage {
   type: 'batch';
   items: Array<{
     item: any;
-    scrapeResult: {
-      content: string;
-      mainContentImageUrls: string[];
-      rawHtml: string;
-      links: string[];
-      metadata: {
-        url: string;
-        title: string;
-      };
-    };
+    scrapeKey: string; // KV key for the scrape result — avoids 128KB queue payload limit
     externalSources: string;
     isRelevant: boolean;
     relevanceReason: string;

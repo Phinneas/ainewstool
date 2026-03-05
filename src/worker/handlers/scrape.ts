@@ -26,17 +26,17 @@ export async function handleScrapeQueue(batch: MessageBatch<ScrapeMessage>, env:
         
         if (cached) {
           console.log(`[Stage 2] Already scraped: ${itemData.title}`);
-          const cachedResult = JSON.parse(cached);
+          // Pass only the KV key — not the full payload — to stay within 128KB queue limit
           scrapedItems.push({
             item: itemData,
-            scrapeResult: cachedResult,
+            scrapeKey: cacheKey,
           });
           continue;
         }
-        
+
         // Pass API key from env to scrape function
         const result = await scrapeUrl(itemData.url, env.FIRECRAWL_API_KEY);
-        
+
         if (!result || !result.content) {
           console.warn(`[Stage 2] Failed to scrape: ${itemData.title}`);
           // Store failure in KV to avoid retrying too frequently
@@ -50,15 +50,16 @@ export async function handleScrapeQueue(batch: MessageBatch<ScrapeMessage>, env:
           );
           continue;
         }
-        
-        // Cache the scrape result
+
+        // Cache the scrape result in KV (evaluate stage will read it from here)
         await env.INGEST_STATE.put(cacheKey, JSON.stringify(result), {
           expirationTtl: 604800, // Cache for 7 days
         });
-        
+
+        // Pass only the KV key — not the full payload — to stay within 128KB queue limit
         scrapedItems.push({
           item: itemData,
-          scrapeResult: result,
+          scrapeKey: cacheKey,
         });
       }
       

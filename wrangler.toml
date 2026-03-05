@@ -93,6 +93,7 @@ head_sampling_rate = 1
 name = "ainewsletter-ingest-prod"
 
 # Production: Scheduled triggers
+[env.production.triggers]
 crons = [
   "0 7 * * *",   # Ingest every morning at 7am UTC
   "0 19 * * *",  # Ingest every evening at 7pm UTC
@@ -165,6 +166,8 @@ id = "d858fcdf0fc84221908e17c523f05aa6"
 # Development environment
 [env.dev]
 name = "ainewsletter-ingest-dev"
+
+[env.dev.triggers]
 crons = []  # Disable scheduled runs in dev
 
 # Dev: Enable observability

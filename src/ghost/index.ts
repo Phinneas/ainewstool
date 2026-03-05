@@ -6,7 +6,6 @@ function getGhostEnv() {
   const contentKey = process.env.GHOST_CONTENT_API_KEY;
   if (!url) throw new Error("GHOST_API_URL environment variable is not set");
   if (!adminKey) throw new Error("GHOST_ADMIN_API_KEY environment variable is not set");
-  if (!contentKey) throw new Error("GHOST_CONTENT_API_KEY environment variable is not set");
   return { url, adminKey, contentKey };
 }
 
@@ -145,6 +144,7 @@ export async function getPosts(options: {
   filter?: string;
 }): Promise<any[]> {
   const { url: GHOST_API_URL, contentKey: GHOST_CONTENT_API_KEY } = getGhostEnv();
+  if (!GHOST_CONTENT_API_KEY) throw new Error("GHOST_CONTENT_API_KEY environment variable is not set");
   const url = new URL(`${GHOST_API_URL}/ghost/api/content/posts/`);
   url.searchParams.append("key", GHOST_CONTENT_API_KEY);
 

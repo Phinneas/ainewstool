@@ -12,19 +12,27 @@ export async function handleUploadQueue(batch: MessageBatch<UploadMessage>, env:
   for (const msg of batch.messages) {
     const message = msg.body;
     
-    for (const { item, scrapeResult, externalSources } of message.items) {
+    for (const { item, scrapeKey, externalSources } of message.items) {
       try {
         console.log(`[Stage 4] Uploading: ${item.title}`);
-        
+
         // Check if already uploaded
         const uploadKey = `upload:${item.uploadFileName}`;
         const uploaded = await env.INGEST_STATE.get(uploadKey);
-        
+
         if (uploaded) {
           console.log(`[Stage 4] Already uploaded: ${item.title}`);
           continue;
         }
-        
+
+        // Fetch scrape result from KV (stored by Stage 2, keyed by scrapeKey)
+        const scrapeData = await env.INGEST_STATE.get(scrapeKey);
+        if (!scrapeData) {
+          console.error(`[Stage 4] No scrape data in KV for: ${item.title} (key: ${scrapeKey})`);
+          continue;
+        }
+        const scrapeResult = JSON.parse(scrapeData);
+
         // Prepare metadata
         const metadata: Record<string, string> = {
           key: `${item.uploadFileName}.md`,
