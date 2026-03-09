@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { chatWithKimi } from "../llm/kimi.js";
+import { chatWithClaude } from "../llm/anthropic.js";
 import { log } from "../logger.js";
 const SUBJECT_LINE_EXAMPLES = `- AI finds cancers with 99% accuracy
 - Claude (finally) searches the web
@@ -64,7 +64,7 @@ Respond with valid JSON:
 }
 
 The subject line MUST be 7-9 words and focus exclusively on the lead story (first story).`;
-    const response = await chatWithKimi({
+    const response = await chatWithClaude({
         system: "You are an expert email copywriter. Always respond with valid JSON.",
         prompt,
         maxTokens: 4096,

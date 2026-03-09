@@ -1,10 +1,20 @@
 import { chatWithMistral } from "../llm/mistral.js";
 export async function evaluateContentRelevance(content) {
-    const prompt = `Given content fetched from a web page, analyze this content to determine if it is a full piece of content that would be considered relevent to our AI Newsletter which features stories, advancements, and other interesting happenings in the tech and AI space.
+    const prompt = `Given content fetched from a web page, analyze this content to determine if it is a full piece of content that would be considered relevant to our AI Newsletter which features news stories, tutorials, research, and other interesting happenings in the tech and AI space.
 
-- Job postings are not relevant content
-- Content centered around unrelated industries is not relevant
-- Only AI and AI Adjacent content should be considered relevant
+## What IS relevant:
+- AI/ML news, announcements, product launches, and industry developments
+- Tutorials, guides, and how-to content about AI tools, frameworks, and techniques
+- Research papers, paper summaries, and technical deep-dives on AI/ML topics
+- AI policy, regulation, and societal impact analysis
+- AI-adjacent technology (cloud infrastructure for AI, GPU/chip developments, developer tools)
+
+## What is NOT relevant:
+- Job postings or hiring announcements
+- Content centered around industries unrelated to AI/tech
+- Generic marketing content or product pages with no substantive information
+- Content that is too short or thin to be useful (less than a few paragraphs)
+- Listicles of AI tools with no analysis or insight
 
 You must respond with valid JSON in this exact format:
 {

@@ -1,6 +1,7 @@
 import { log } from "../logger.js";
 import { generateSearchQueries } from "./generate-queries.js";
 import { firecrawlSearch } from "./search.js";
+import { exaSearch } from "./exa-search.js";
 import { normalizeSearchResult } from "./normalize.js";
 import { mapConcurrent } from "./concurrency.js";
 import { evaluateContentRelevance } from "./evaluate.js";
@@ -21,16 +22,19 @@ export async function runDiscovery(existingUrls) {
     const timer = log.timer("discovery-total");
     // Step 1: Generate queries
     const queries = await generateSearchQueries();
-    // Step 2: Search for each query
-    log.info(`Searching with ${queries.length} queries...`);
+    // Step 2: Search for each query — run Firecrawl and Exa in parallel per query
+    log.info(`Searching with ${queries.length} queries (Firecrawl + Exa in parallel)...`);
     const allResults = [];
     for (const query of queries) {
-        const results = await firecrawlSearch(query, 5);
-        for (const result of results) {
+        const [firecrawlResults, exaResults] = await Promise.all([
+            firecrawlSearch(query, 5),
+            exaSearch(query, 5),
+        ]);
+        for (const result of [...firecrawlResults, ...exaResults]) {
             allResults.push({ query, result });
         }
     }
-    log.info(`Got ${allResults.length} total search results across all queries`);
+    log.info(`Got ${allResults.length} total search results across all queries (Firecrawl + Exa)`);
     // Step 3: Deduplicate by URL
     const seenUrls = new Set(existingUrls);
     const uniqueResults = [];

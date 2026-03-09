@@ -78,6 +78,8 @@ id = "d858fcdf0fc84221908e17c523f05aa6"
 # - EXA_API_KEY
 # - GHOST_ADMIN_API_KEY
 # - GHOST_API_URL
+# - BEEHIIV_API_KEY          (optional — wrangler secret put BEEHIIV_API_KEY)
+# - BEEHIIV_PUBLICATION_ID   (optional — wrangler secret put BEEHIIV_PUBLICATION_ID)
 
 # Enable observability (logs)
 [observability]

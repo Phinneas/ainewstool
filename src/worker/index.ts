@@ -35,6 +35,8 @@ export interface Env {
   REDDIT_CLIENT_SECRET?: string;
   GHOST_ADMIN_API_KEY: string;
   GHOST_API_URL: string;
+  BEEHIIV_API_KEY?: string;
+  BEEHIIV_PUBLICATION_ID?: string;
 }
 
 export default {

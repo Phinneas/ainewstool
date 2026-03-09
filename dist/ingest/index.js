@@ -1,5 +1,6 @@
 import RssParser from "rss-parser";
-import { NEWSLETTER_FEEDS, JSON_FEEDS, BLOG_FEEDS, REDDIT_FEEDS, } from "./feeds.js";
+import { NEWSLETTER_FEEDS, JSON_FEEDS, BLOG_FEEDS, REDDIT_FEEDS, NEWS_FEEDS, SUBSTACK_FEEDS, TUTORIAL_FEEDS, RESEARCH_FEEDS, SCRAPED_PAGE_FEEDS, } from "./feeds.js";
+import { fetchScrapedPageFeedItems } from "./scrape-page.js";
 import { log } from "../logger.js";
 import { mapConcurrent } from "./concurrency.js";
 import { normalizeRssItem, normalizeJsonFeedItem, normalizeGoogleNewsItem, normalizeRedditItem, } from "./normalize.js";
@@ -72,11 +73,21 @@ async function fetchRedditFeedItems(feed) {
 async function fetchAllFeeds() {
     log.info("Fetching all feeds...");
     const fetchTimer = log.timer("fetch-all-feeds");
+    // Separate Reddit feeds by format (json uses rss.app, rss uses native Reddit RSS)
+    const redditJsonFeeds = REDDIT_FEEDS.filter((f) => f.format === "json");
+    const redditRssFeeds = REDDIT_FEEDS.filter((f) => f.format === "rss");
     const results = await Promise.allSettled([
         ...NEWSLETTER_FEEDS.map((feed) => fetchRssFeedItems(feed)),
         ...JSON_FEEDS.map((feed) => fetchJsonFeedItems(feed)),
         ...BLOG_FEEDS.map((feed) => fetchJsonFeedItems(feed)),
-        ...REDDIT_FEEDS.map((feed) => fetchRedditFeedItems(feed)),
+        ...redditJsonFeeds.map((feed) => fetchRedditFeedItems(feed)),
+        ...redditRssFeeds.map((feed) => fetchRssFeedItems(feed)),
+        ...NEWS_FEEDS.map((feed) => fetchRssFeedItems(feed)),
+        ...SUBSTACK_FEEDS.map((feed) => fetchRssFeedItems(feed)),
+        ...TUTORIAL_FEEDS.map((feed) => fetchRssFeedItems(feed)),
+        ...RESEARCH_FEEDS.map((feed) => fetchRssFeedItems(feed)),
+        // Scraped-page feeds: scrape blog index pages for article links
+        ...SCRAPED_PAGE_FEEDS.map((feed) => fetchScrapedPageFeedItems(feed)),
     ]);
     const items = [];
     for (const result of results) {
@@ -109,14 +120,17 @@ async function stageFilter(items) {
 }
 /** Stage 2: Scrape — fetch content via Firecrawl, concurrency limited. */
 async function stageScrape(items) {
-    log.info(`Stage 2: Scraping ${items.length} items (concurrency: 3)...`);
+    // Increase concurrency to 8 for better throughput while respecting rate limits
+    const concurrency = 8;
+    log.info(`Stage 2: Scraping ${items.length} items (concurrency: ${concurrency})...`);
     const scrapeTimer = log.timer("stage-scrape");
-    const results = await mapConcurrent(items, 3, async (item) => {
+    const results = await mapConcurrent(items, concurrency, async (item, index) => {
         const label = `[${item.sourceName}] ${item.title}`;
-        log.info(`SCRAPING: ${label}`);
+        const progress = `[${index + 1}/${items.length}]`;
+        log.info(`${progress} SCRAPING: ${label}`);
         const result = await scrapeUrl(item.url);
         if (!result || !result.content) {
-            log.warn(`SKIP (scrape failed): ${label}`);
+            log.warn(`${progress} SKIP (scrape failed): ${label}`);
             return null;
         }
         return { item, scrapeResult: result };
@@ -138,13 +152,16 @@ async function stageScrape(items) {
 }
 /** Stage 3: Evaluate — relevance check + external source extraction, concurrency limited. */
 async function stageEvaluate(items) {
-    log.info(`Stage 3: Evaluating ${items.length} items (concurrency: 5)...`);
+    // Increase concurrency to 12 since LLM calls are faster than scraping
+    const concurrency = 12;
+    log.info(`Stage 3: Evaluating ${items.length} items (concurrency: ${concurrency})...`);
     const evalTimer = log.timer("stage-evaluate");
-    const results = await mapConcurrent(items, 5, async ({ item, scrapeResult }) => {
+    const results = await mapConcurrent(items, concurrency, async ({ item, scrapeResult }, index) => {
         const label = `[${item.sourceName}] ${item.title}`;
+        const progress = `[${index + 1}/${items.length}]`;
         const evaluation = await evaluateContentRelevance(scrapeResult.content);
         if (!evaluation.isRelevant) {
-            log.info(`SKIP (not relevant): ${label}`);
+            log.info(`${progress} SKIP (not relevant): ${label}`);
             return null;
         }
         const externalSources = await extractExternalSources(scrapeResult);
@@ -167,14 +184,19 @@ async function stageEvaluate(items) {
 }
 /** Stage 4: Upload — store content + metadata to S3, concurrency limited. */
 async function stageUpload(items) {
-    log.info(`Stage 4: Uploading ${items.length} items (concurrency: 10)...`);
+    // Increase concurrency to 15 for S3 uploads (very fast)
+    const concurrency = 15;
+    log.info(`Stage 4: Uploading ${items.length} items (concurrency: ${concurrency})...`);
     const uploadTimer = log.timer("stage-upload");
-    const results = await mapConcurrent(items, 10, async ({ item, scrapeResult, externalSources }) => {
+    const results = await mapConcurrent(items, concurrency, async ({ item, scrapeResult, externalSources }, index) => {
         const label = `[${item.sourceName}] ${item.title}`;
+        const progress = `[${index + 1}/${items.length}]`;
         const metadata = {
             key: `${item.uploadFileName}.md`,
             type: item.feedType,
-            title: item.title,
+            // Prefer the title extracted by Firecrawl from the actual page over the
+            // placeholder title derived from the URL slug (used by scraped_page feeds).
+            title: scrapeResult.metadata.title || item.title,
             authors: item.authors,
             "source-name": item.sourceName,
             "external-source-urls": externalSources,
@@ -184,7 +206,7 @@ async function stageUpload(items) {
             "feed-url": item.feedUrl,
         };
         await s3.uploadWithMetadata(item.uploadFileName, scrapeResult.content, scrapeResult.rawHtml, metadata);
-        log.info(`STORED: ${label}`);
+        log.info(`${progress} STORED: ${label}`);
     });
     let stored = 0;
     for (const r of results) {

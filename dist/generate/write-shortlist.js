@@ -2,72 +2,52 @@ import { z } from "zod/v4";
 import { chatWithClaude } from "../llm/anthropic.js";
 import { log } from "../logger.js";
 export async function writeShortlist(params) {
-    const { subjectLine, storySections, allContent, previousNewsletter, date } = params;
+    const { subjectLine, storySections, date } = params;
+    // Count story sections by looking for ## headers (story titles)
+    const storyCount = (storySections.match(/^## /gm) || []).length;
     const prompt = `## Role:
 
-You are an expert AI Newsletter Writer, specializing in crafting concise, engaging, and informative summaries of the latest AI news for a tech-savvy audience. You are writing a specific section for the newsletter "BrainScriblr".
+You are an expert AI Newsletter Writer creating a TL;DR summary section for "BrainScriblr" newsletter.
 
 ## Context:
 
-We are creating the "Other Top AI Stories" section for our email newsletter, "BrainScriblr". This section should highlight interesting and relevant AI news items that were *not* covered in the main segments of the newsletter. The goal is to provide readers with a quick overview of other significant developments in the AI space. The stories you pick MUST be related to AI.
+Create a "Quick Scribbles" section that summarizes ALL the main stories in this newsletter. This appears at the TOP of the newsletter to give readers a fast overview. Each item should be one concise sentence.
 
-Today's date for the newsletter is *${date}*.
+Today's date: *${date}*.
 
-## Task:
+## CRITICAL REQUIREMENTS:
 
-Analyze the provided list of AI news stories, select the most relevant and interesting stories for a tech and AI enthusiast audience (typically 3-5 stories), ensuring they do *not* overlap with the stories already in the newsletter, and write a short summary for each selected story in the specified format.
-
-You must include a minimum of at least 3 stories. If there is not a valid link to include, omit that story.
-
-## Formatting and Style Requirements:
-*   **Output Format:** Markdown.
-*   **Story Structure:**
-    *   The **first word** of each story summary *must* be **bolded**.
-    *   The **second word** *must* be a **verb** and formatted as a Markdown **link** (\`[verb](URL)\`).
-    *   The rest should be a concise summary of the story's key takeaway.
-*   **Style:** Mimic "The Rundown" style. Concise, informative, slightly informal, engaging.
-*   Each story must be its own paragraph. **Do NOT use bullet points or numbered lists.**
-
-## Examples:
-
-**NVIDIA** [released](URL) Nemotron-Ultra, a 253B parameter open-source reasoning model that surpasses DeepSeek R1 and Llama 4 Behemoth across key benchmarks.
-
-**OpenAI** [published](URL) its EU Economic Blueprint, proposing a €1B AI accelerator fund and aiming to train 100M Europeans in AI skills by 2030.
-
-**Deep Cogito** [emerged](URL) from stealth with Cogito v1 Preview, a family of open-source models that it claims beats the best available open models of the same size.
-
-## Link Requirements:
-
-- All links MUST be copied verbatim from the source material. Do NOT modify URLs.
-- NO generic homepages. Links must point to specific pages.
-- If no valid URL exists for a story, omit that story entirely.
+1. You MUST summarize ALL ${storyCount} main stories found in the content below
+2. Use EXACTLY this bullet format for each story:
+   - **Company/Topic** — One sentence summary.
 
 ## Subject Line
 ${subjectLine}
 
-## Main Stories Already Covered (Do NOT repeat these)
+## Main Stories to Summarize (there are ${storyCount} stories)
 ${storySections}
-
-${previousNewsletter ? `## Previous Newsletter (avoid duplicates)\n\n${previousNewsletter}` : ""}
-
-## List of Potential Other AI Stories
-${allContent}
 
 ## Output Format
 
 Respond with valid JSON:
 {
-  "chainOfThought": "your reasoning for each story selection and link verification...",
-  "newsletter_other_top_stories_section_content": "the markdown content"
-}`;
+  "chainOfThought": "I found X stories and will summarize each one...",
+  "quick_scribbles": "the markdown content with ALL ${storyCount} summaries as bullet points"
+}
+
+Example quick_scribbles format:
+- **Microsoft** — Launched new document AI achieving 95%+ accuracy on complex layouts.
+- **OpenAI** — Released updated model with improved reasoning capabilities.
+- **Google** — Announced enterprise features for their AI assistant platform.
+- **Meta** — Published research on multimodal understanding breakthroughs.`;
     const response = await chatWithClaude({
-        system: "You are an expert AI newsletter writer. Always respond with valid JSON.",
+        system: "You are an expert AI newsletter writer. Always respond with valid JSON. You must include ALL stories in the summary.",
         prompt,
-        maxTokens: 4096,
+        maxTokens: 2048,
     });
     const ShortlistSchema = z.object({
         chainOfThought: z.string().optional(),
-        newsletter_other_top_stories_section_content: z.string(),
+        quick_scribbles: z.string(),
     });
     try {
         const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -79,7 +59,12 @@ Respond with valid JSON:
             log.error("Raw LLM response", { response: response.slice(0, 2000) });
             throw new Error("Shortlist response did not match expected schema");
         }
-        return result.data.newsletter_other_top_stories_section_content;
+        // Validate that we have the expected number of bullet points
+        const bulletCount = (result.data.quick_scribbles.match(/^- \*\*/gm) || []).length;
+        if (bulletCount < storyCount) {
+            log.warn(`Shortlist has ${bulletCount} bullets but expected ${storyCount} stories`);
+        }
+        return result.data.quick_scribbles;
     }
     catch (err) {
         if (err instanceof Error && err.message.includes("schema"))

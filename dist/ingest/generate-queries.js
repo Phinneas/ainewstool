@@ -2,11 +2,11 @@ import { chatWithMistral } from "../llm/mistral.js";
 import { log } from "../logger.js";
 export async function generateSearchQueries() {
     const today = new Date().toISOString().substring(0, 10);
-    const prompt = `You are an AI news researcher. Today's date is ${today}.
+    const prompt = `You are an AI news and tutorial researcher. Today's date is ${today}.
 
-Generate 5-8 search queries to find the most important and interesting AI news stories from today and the past 24 hours.
+Generate 8-12 search queries to find the most important AI news stories AND the best AI tutorials/guides from today and the past few days.
 
-Your queries should cover diverse topics including:
+## News queries (generate 5-7):
 - New AI model releases, benchmarks, and capabilities
 - AI startup funding rounds and acquisitions
 - AI policy, regulation, and government actions
@@ -14,6 +14,14 @@ Your queries should cover diverse topics including:
 - AI research breakthroughs and papers
 - Major tech company AI announcements (Google, OpenAI, Anthropic, Meta, Microsoft, etc.)
 - AI applications in various industries
+- Model Context Protocol (MCP) tools and integrations
+
+## Tutorial/guide queries (generate 3-5):
+- Practical tutorials on fine-tuning, training, or deploying AI models
+- Step-by-step guides for building AI agents or applications
+- How-to content for popular AI frameworks and tools (LangChain, LlamaIndex, HuggingFace, etc.)
+- AI coding tutorials and developer guides
+- Beginner-friendly AI/ML explainers and walkthroughs
 
 Each query should be specific enough to return relevant results but broad enough to capture multiple stories. Use natural search language, not boolean operators.
 
@@ -50,5 +58,9 @@ function getDefaultQueries() {
         "AI regulation policy news",
         "artificial intelligence research breakthrough",
         "OpenAI Google Anthropic Meta AI news",
+        "Model Context Protocol MCP tools and integrations",
+        "AI tutorial how to build agents guide",
+        "fine-tuning LLM tutorial step by step",
+        "AI coding assistant tutorial beginner guide",
     ];
 }

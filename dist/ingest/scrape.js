@@ -1,17 +1,26 @@
-import { config } from "../config.js";
+// Use env var directly to avoid pulling in S3 config
+// In Workers, API key is passed via env parameter, not process.env
 import { log } from "../logger.js";
 const FIRECRAWL_URL = "https://api.firecrawl.dev/v1/scrape";
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 5000;
+const MAX_RETRIES = 2;
+const INITIAL_RETRY_DELAY_MS = 2000;
+const MAX_TIMEOUT_MS = 45000; // 45 seconds max per scrape
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
-export async function scrapeUrl(url) {
+export async function scrapeUrl(url, apiKey) {
+    // Try passed apiKey first, then process.env (Node.js), then global ( Workers)
+    const effectiveApiKey = apiKey || process.env?.FIRECRAWL_API_KEY || globalThis.FIRECRAWL_API_KEY;
+    if (!effectiveApiKey) {
+        log.warn(`Firecrawl API key not available`);
+        return null;
+    }
     const body = {
         url,
         formats: ["json", "markdown", "rawHtml", "links"],
         excludeTags: ["iframe", "nav", "header", "footer"],
         onlyMainContent: true,
+        timeout: 30000, // 30 second timeout per scrape
         jsonOptions: {
             prompt: "Identify the main content of the text (i.e., the article or newsletter body). Provide the exact text for that main content verbatim, without summarizing or rewriting any part of it. Exclude all non-essential elements such as banners, headers, footers, calls to action, ads, or purely navigational text. Format this output as markdown using appropriate '#' characters as heading levels. Exclude any promotional or sponsored content on your output. Additionally, you must identify and extract the image urls within this main content. These images must be inside the main content of the page so you must exclude small logo images, icons, avatars and other images which aren't a core part of the main content. The images you extract should at least have a width of 600 pixels (px) so it can be included on our content.",
             schema: {
@@ -37,12 +46,12 @@ export async function scrapeUrl(url) {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 120_000);
+            const timeout = setTimeout(() => controller.abort(), MAX_TIMEOUT_MS);
             const response = await fetch(FIRECRAWL_URL, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${config.firecrawl.apiKey}`,
+                    Authorization: `Bearer ${effectiveApiKey}`,
                 },
                 body: JSON.stringify(body),
                 signal: controller.signal,
@@ -52,7 +61,10 @@ export async function scrapeUrl(url) {
                 const errorText = await response.text();
                 log.warn(`Firecrawl error`, { attempt, maxRetries: MAX_RETRIES, status: response.status, error: errorText });
                 if (attempt < MAX_RETRIES) {
-                    await sleep(RETRY_DELAY_MS);
+                    // Exponential backoff: 2s, 4s
+                    const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+                    log.info(`Retrying in ${delay}ms...`);
+                    await sleep(delay);
                     continue;
                 }
                 return null;
@@ -60,7 +72,9 @@ export async function scrapeUrl(url) {
             const data = (await response.json());
             if (!data.success || !data.data) {
                 if (attempt < MAX_RETRIES) {
-                    await sleep(RETRY_DELAY_MS);
+                    const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+                    log.info(`Retrying in ${delay}ms...`);
+                    await sleep(delay);
                     continue;
                 }
                 return null;
@@ -77,9 +91,18 @@ export async function scrapeUrl(url) {
             };
         }
         catch (err) {
-            log.warn(`Firecrawl fetch error`, { attempt, maxRetries: MAX_RETRIES, error: err instanceof Error ? err.message : String(err) });
-            if (attempt < MAX_RETRIES)
-                await sleep(RETRY_DELAY_MS);
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            log.warn(`Firecrawl fetch error`, { attempt, maxRetries: MAX_RETRIES, error: errorMsg });
+            // Don't retry on abort/timeout errors after max retries
+            if (errorMsg.includes('abort') || errorMsg.includes('timeout')) {
+                log.warn(`Timeout/abort error, skipping retries for ${url}`);
+                return null;
+            }
+            if (attempt < MAX_RETRIES) {
+                const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+                log.info(`Retrying in ${delay}ms...`);
+                await sleep(delay);
+            }
         }
     }
     return null;

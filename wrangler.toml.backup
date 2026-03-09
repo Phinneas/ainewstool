@@ -1,0 +1,50 @@
+# Cloudflare Workers Configuration for AI Newsletter Ingest
+name = "ainewsletter-ingest"
+main = "src/worker/index.ts"
+compatibility_date = "2024-01-01"
+
+# Queue bindings - each stage feeds the next
+[[queues.consumers]]
+queue = "scrape-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+
+[[queues.consumers]]
+queue = "evaluate-queue"
+max_batch_size = 20
+max_batch_timeout = 30
+
+[[queues.consumers]]
+queue = "upload-queue"
+max_batch_size = 30
+max_batch_timeout = 30
+
+# R2 bucket for content storage (matches your current setup)
+[[r2_buckets]]
+binding = "CONTENT_BUCKET"
+bucket_name = "ainewsletter"
+
+# KV namespace for tracking state and deduplication
+[[kv_namespaces]]
+binding = "INGEST_STATE"
+id = "your_kv_namespace_id"  # Will be created on first deploy
+
+# Secrets (set via wrangler secret put)
+# - FIRECRAWL_API_KEY
+# - ANTHROPIC_API_KEY
+# - MISTRAL_API_KEY
+# - MOONSHOT_API_KEY
+# - REDDIT_CLIENT_ID
+# - REDDIT_CLIENT_SECRET
+
+# Scheduled triggers
+[triggers]
+crons = ["0 */6 * * *"]  # Run feed fetching every 6 hours
+
+[env.production]
+name = "ainewsletter-ingest-prod"
+
+# Development-specific settings
+[env.dev]
+name = "ainewsletter-ingest-dev"
+crons = []  # Disable scheduled runs in dev

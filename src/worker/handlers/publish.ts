@@ -1,9 +1,10 @@
 /**
- * Stage 6: Publish newsletter to Ghost CMS as a draft
+ * Stage 6: Publish newsletter to Ghost CMS and Beehiiv as drafts
  * Consumes messages from publish-queue
  *
  * Takes the assembled newsletter markdown, converts it to HTML,
- * and creates a Ghost post as a draft for review before sending.
+ * and creates drafts in both Ghost and Beehiiv for review before sending.
+ * A failure in one destination does not block the other.
  */
 
 import { Env } from '../index.js';
@@ -16,9 +17,15 @@ interface PublishMessage {
   timestamp: number;
 }
 
+interface ParsedNewsletter {
+  title: string;
+  preheader: string;
+  bodyMarkdown: string;
+  html: string;
+}
+
 /**
- * Minimal markdown-to-HTML conversion for Ghost.
- * Ghost accepts HTML in the `html` field of the Admin API.
+ * Minimal markdown-to-HTML conversion for Ghost and Beehiiv body content.
  */
 function markdownToHtml(md: string): string {
   // First pass: convert headers
@@ -32,7 +39,7 @@ function markdownToHtml(md: string): string {
 
   // Handle bullet lists - group consecutive list items
   html = html.replace(/(^- .+\n?)+/gm, (match) => {
-    const items = match.trim().split('\n').map(item => 
+    const items = match.trim().split('\n').map(item =>
       `<li>${item.replace(/^- /, '')}</li>`
     ).join('\n');
     return `<ul>\n${items}\n</ul>`;
@@ -52,13 +59,11 @@ function markdownToHtml(md: string): string {
   let paragraphContent: string[] = [];
 
   for (const line of lines) {
-    // Check if this is a block element (starts a new block)
     const isBlockStart = line.match(/^<(h[1-3]|ul|hr)/);
     const isBlockEnd = line.match(/<\/(h[1-3]|ul)>$/);
     const isEmpty = line.trim() === '';
 
     if (isBlockStart || isBlockEnd) {
-      // Close any open paragraph first
       if (inParagraph) {
         result.push('<p>' + paragraphContent.join('<br>') + '</p>');
         paragraphContent = [];
@@ -66,25 +71,45 @@ function markdownToHtml(md: string): string {
       }
       result.push(line);
     } else if (isEmpty) {
-      // Empty line - close paragraph if open
       if (inParagraph && paragraphContent.length > 0) {
         result.push('<p>' + paragraphContent.join('<br>') + '</p>');
         paragraphContent = [];
         inParagraph = false;
       }
     } else {
-      // Regular content - add to paragraph
       paragraphContent.push(line);
       inParagraph = true;
     }
   }
 
-  // Close any remaining paragraph
   if (inParagraph && paragraphContent.length > 0) {
     result.push('<p>' + paragraphContent.join('<br>') + '</p>');
   }
 
   return result.join('\n');
+}
+
+/**
+ * Parse newsletter markdown into title, preheader, and body HTML.
+ * Shared by both Ghost and Beehiiv publish functions.
+ */
+function parseNewsletter(message: PublishMessage): ParsedNewsletter {
+  const lines = message.newsletter.split('\n');
+  const title = lines[0].replace(/^#\s+/, '').trim() || `AI Newsletter — ${message.dates[0]}`;
+
+  const preheaderIndex = lines.findIndex((l, i) => i > 0 && l.trim().startsWith('PLUS:'));
+  const preheader = preheaderIndex >= 0 ? lines[preheaderIndex].trim() : '';
+
+  const bodyLines = lines.filter((line, index) => {
+    if (index === 0 && line.startsWith('# ')) return false;
+    if (index === preheaderIndex) return false;
+    return true;
+  });
+
+  const bodyMarkdown = bodyLines.join('\n');
+  const html = markdownToHtml(bodyMarkdown.trim());
+
+  return { title, preheader, bodyMarkdown, html };
 }
 
 /**
@@ -137,6 +162,171 @@ async function createGhostJwt(adminKey: string): Promise<string> {
   return `${signingInput}.${sigB64}`;
 }
 
+/**
+ * Publish to Ghost CMS as a draft.
+ * Returns true on success, false on failure (failure is logged to KV).
+ */
+async function publishToGhost(
+  message: PublishMessage,
+  parsed: ParsedNewsletter,
+  env: Env
+): Promise<boolean> {
+  const { title, preheader, html } = parsed;
+
+  // Dedup check — also accept legacy key (published:{id}) for previously published newsletters
+  const dedupKey = `published:ghost:${message.generateId}`;
+  const legacyKey = `published:${message.generateId}`;
+  const [already, alreadyLegacy] = await Promise.all([
+    env.INGEST_STATE.get(dedupKey),
+    env.INGEST_STATE.get(legacyKey),
+  ]);
+  if (already || alreadyLegacy) {
+    console.log(`[Stage 6] Ghost: already published ${message.generateId} — skipping`);
+    return true;
+  }
+
+  try {
+    const mobiledoc = JSON.stringify({
+      version: '0.3.1',
+      atoms: [],
+      cards: [['html', { html }]],
+      markups: [],
+      sections: [[10, 0]],
+    });
+
+    console.log(`[Stage 6] Ghost: body ${html.length} chars`);
+
+    const jwt = await createGhostJwt(env.GHOST_ADMIN_API_KEY);
+    const url = `${env.GHOST_API_URL}/ghost/api/admin/posts/`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Ghost ${jwt}`,
+        'Accept-Version': 'v5.0',
+      },
+      body: JSON.stringify({
+        posts: [
+          {
+            title,
+            mobiledoc,
+            status: 'draft',
+            custom_excerpt: preheader || null,
+            tags: [{ name: 'Newsletter' }, { name: 'AI' }],
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Ghost API error ${response.status}: ${errorText}`);
+    }
+
+    const data = (await response.json()) as { posts: Array<{ id: string; url: string }> };
+    const post = data.posts[0];
+
+    console.log(`[Stage 6] Ghost: ✓ draft created — ID: ${post.id}`);
+    console.log(`[Stage 6] Ghost: ✓ URL: ${post.url}`);
+
+    await env.INGEST_STATE.put(dedupKey, JSON.stringify({
+      postId: post.id,
+      postUrl: post.url,
+      title,
+      timestamp: Date.now(),
+    }), { expirationTtl: 60 * 60 * 24 * 30 });
+
+    return true;
+  } catch (error) {
+    console.error(`[Stage 6] Ghost publish failed for ${message.generateId}:`, error);
+    await env.INGEST_STATE.put(
+      `error:ghost:${message.generateId}`,
+      JSON.stringify({
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: Date.now(),
+      }),
+      { expirationTtl: 60 * 60 * 24 * 7 }
+    );
+    return false;
+  }
+}
+
+/**
+ * Publish to Beehiiv as a draft.
+ * Returns true on success, false on failure (failure is logged to KV).
+ * Skipped with a warning if BEEHIIV_API_KEY or BEEHIIV_PUBLICATION_ID is absent.
+ */
+async function publishToBeehiiv(
+  message: PublishMessage,
+  parsed: ParsedNewsletter,
+  env: Env
+): Promise<boolean> {
+  if (!env.BEEHIIV_API_KEY || !env.BEEHIIV_PUBLICATION_ID) {
+    console.warn('[Stage 6] Beehiiv: BEEHIIV_API_KEY or BEEHIIV_PUBLICATION_ID not set — skipping');
+    return true; // Not a failure — Beehiiv is optional
+  }
+
+  const { title, preheader, html } = parsed;
+
+  const dedupKey = `published:beehiiv:${message.generateId}`;
+  const already = await env.INGEST_STATE.get(dedupKey);
+  if (already) {
+    console.log(`[Stage 6] Beehiiv: already published ${message.generateId} — skipping`);
+    return true;
+  }
+
+  try {
+    console.log(`[Stage 6] Beehiiv: body ${html.length} chars`);
+
+    const url = `https://api.beehiiv.com/v2/publications/${env.BEEHIIV_PUBLICATION_ID}/posts`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.BEEHIIV_API_KEY}`,
+      },
+      body: JSON.stringify({
+        title,
+        subtitle: preheader || undefined,
+        status: 'draft',
+        free_web_content: html,
+        free_email_content: html,
+        displayed_date: Math.floor(Date.now() / 1000),
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Beehiiv API error ${response.status}: ${errorText}`);
+    }
+
+    const data = (await response.json()) as { data: { id: string; web_url?: string } };
+    const post = data.data;
+
+    console.log(`[Stage 6] Beehiiv: ✓ draft created — ID: ${post.id}`);
+
+    await env.INGEST_STATE.put(dedupKey, JSON.stringify({
+      postId: post.id,
+      webUrl: post.web_url ?? null,
+      title,
+      timestamp: Date.now(),
+    }), { expirationTtl: 60 * 60 * 24 * 30 });
+
+    return true;
+  } catch (error) {
+    console.error(`[Stage 6] Beehiiv publish failed for ${message.generateId}:`, error);
+    await env.INGEST_STATE.put(
+      `error:beehiiv:${message.generateId}`,
+      JSON.stringify({
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: Date.now(),
+      }),
+      { expirationTtl: 60 * 60 * 24 * 7 }
+    );
+    return false;
+  }
+}
+
 export async function handlePublishQueue(
   batch: MessageBatch<PublishMessage>,
   env: Env
@@ -146,106 +336,23 @@ export async function handlePublishQueue(
   for (const msg of batch.messages) {
     const message = msg.body;
     console.log(`[Stage 6] Publishing for generate ID: ${message.generateId}`);
-      
-      console.log('[Stage 6] Ghost key format check:', env.GHOST_ADMIN_API_KEY ? `${env.GHOST_ADMIN_API_KEY.substring(0,20)}...` : 'EMPTY/UNDEFINED');
 
-    try {
-      // Dedup check
-      const dedupKey = `published:${message.generateId}`;
-      const alreadyPublished = await env.INGEST_STATE.get(dedupKey);
-      if (alreadyPublished) {
-        console.log(`[Stage 6] Already published: ${message.generateId} — skipping`);
-        continue;
-      }
+    const parsed = parseNewsletter(message);
 
-      // Parse subject line from first line of newsletter (# Subject Line)
-      const lines = message.newsletter.split('\n');
-      const title = lines[0].replace(/^#\s+/, '').trim() || `AI Newsletter — ${message.dates[0]}`;
+    const [ghostOk, beehiivOk] = await Promise.all([
+      publishToGhost(message, parsed, env),
+      publishToBeehiiv(message, parsed, env),
+    ]);
 
-      // Parse custom_excerpt from the line that starts with "PLUS:"
-      const preheaderIndex = lines.findIndex((l, i) => i > 0 && l.trim().startsWith('PLUS:'));
-      const preheader = preheaderIndex >= 0 ? lines[preheaderIndex].trim() : '';
+    if (!ghostOk && !beehiivOk) {
+      throw new Error(`Both Ghost and Beehiiv publish failed for ${message.generateId} — retrying`);
+    }
 
-      // Strip title and preheader from body - Ghost displays them separately
-      const bodyLines = lines.filter((line, index) => {
-        if (index === 0 && line.startsWith('# ')) return false;
-        if (index === preheaderIndex) return false;
-        return true;
-      });
-      
-      const bodyMarkdown = bodyLines.join('\n');
-
-      const html = markdownToHtml(bodyMarkdown.trim());
-      
-      // Use mobiledoc format with HTML card — Ghost's html field is unreliable
-      // and silently drops content. Mobiledoc HTML cards are stored as-is.
-      const mobiledoc = JSON.stringify({
-        version: '0.3.1',
-        atoms: [],
-        cards: [['html', { html }]],
-        markups: [],
-        sections: [[10, 0]],
-      });
-      
-      console.log(`[Stage 6] Body: ${bodyMarkdown.length} chars → HTML: ${html.length} chars`);
-
-      // Create Ghost JWT
-      const jwt = await createGhostJwt(env.GHOST_ADMIN_API_KEY);
-
-      // Post to Ghost Admin API as draft
-      const url = `${env.GHOST_API_URL}/ghost/api/admin/posts/`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Ghost ${jwt}`,
-          'Accept-Version': 'v5.0',
-        },
-        body: JSON.stringify({
-          posts: [
-            {
-              title,
-              mobiledoc,
-              status: 'draft',
-              custom_excerpt: preheader || null,
-              tags: [{ name: 'Newsletter' }, { name: 'AI' }],
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Ghost API error ${response.status}: ${errorText}`);
-      }
-
-      const data = (await response.json()) as { posts: Array<{ id: string; url: string }> };
-      const post = data.posts[0];
-
-      console.log(`[Stage 6] ✓ Ghost draft created — ID: ${post.id}`);
-      console.log(`[Stage 6] ✓ URL: ${post.url}`);
-
-      // Mark as published in KV
-      await env.INGEST_STATE.put(dedupKey, JSON.stringify({
-        postId: post.id,
-        postUrl: post.url,
-        title,
-        timestamp: Date.now(),
-      }), { expirationTtl: 60 * 60 * 24 * 30 }); // 30 days
-
-    } catch (error) {
-      console.error(`[Stage 6] Publish failed for ${message.generateId}:`, error);
-
-      await env.INGEST_STATE.put(
-        `error:publish:${message.generateId}`,
-        JSON.stringify({
-          error: error instanceof Error ? error.message : String(error),
-          timestamp: Date.now(),
-        }),
-        { expirationTtl: 60 * 60 * 24 * 7 }
-      );
-
-      throw error; // Let queue retry
+    if (!ghostOk) {
+      console.error(`[Stage 6] Ghost failed for ${message.generateId} — Beehiiv succeeded, no retry`);
+    }
+    if (!beehiivOk) {
+      console.error(`[Stage 6] Beehiiv failed for ${message.generateId} — Ghost succeeded, no retry`);
     }
   }
 }

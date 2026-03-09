@@ -1,22 +1,24 @@
 import { z } from "zod/v4";
-import { chatWithKimi } from "../llm/kimi.js";
+import { chatWithClaude } from "../llm/anthropic.js";
 import { log } from "../logger.js";
 export async function selectTopStories(contentItems, previousNewsletter) {
     const contentText = contentItems
         .map((item) => `<${item.identifier}>\n---\nidentifier: ${item.identifier}\nfriendlyType: ${item.type}\nsourceName: ${item.sourceName}\nexternalSourceUrls: ${item.externalSourceUrls}\n---\n\n${item.content}\n</${item.identifier}>`)
         .join("\n\n");
-    const prompt = `You are an AI assistant specialized in reading raw text about AI-related news, trends, and breakthroughs. Your objective is to determine which stories should be included in our AI Tools newsletter, based on their relevance, impact, and interest to a tech-savvy audience. You are also an expert at crafting subject lines for newsletter emails that leads to great open rates and keeps our readers interested.
+    const prompt = `You are an AI assistant specialized in reading raw text about AI-related news, tutorials, research, and breakthroughs. Your objective is to determine which stories should be included in our AI Tools newsletter, based on their relevance, impact, and interest to a tech-savvy audience. You are also an expert at crafting subject lines for newsletter emails that leads to great open rates and keeps our readers interested.
 
 ## Task
 
 Select the top 4 stories from the provided content to feature in our AI newsletter. These should be the most impactful, interesting, and relevant stories for our audience of AI enthusiasts, developers, entrepreneurs, and early adopters.
 
+Each content item includes a \`feedType\` field indicating its type: "article" (news), "tutorial" (how-to/guide), "research" (papers/studies), or "newsletter" (analysis).
+
 ## Selection Criteria
 
 1. **Impact**: Stories about major announcements, breakthroughs, or significant developments in AI
-2. **Relevance**: Stories directly related to AI, machine learning, or AI-adjacent technology
+2. **Relevance**: Stories directly related to AI, machine learning, Model Context Protocol (MCP), or AI-adjacent technology
 3. **Interest**: Stories that would genuinely interest and excite our tech-savvy audience
-4. **Diversity**: Try to cover different aspects of AI (products, research, business, policy)
+4. **Diversity**: Try to cover different aspects of AI (products, research, business, policy, MCP tools). When high-quality tutorial or research content is available, try to include at least 1 tutorial or research piece among the 4 selections.
 5. **Recency**: Prefer newer developments over older news
 
 ## Content to Evaluate
@@ -41,7 +43,7 @@ You MUST respond with valid JSON in this exact format:
 }
 
 Select exactly 4 stories. The first story should be the most impactful/important one (the lead story).`;
-    const response = await chatWithKimi({
+    const response = await chatWithClaude({
         system: "You are an AI assistant specialized in analyzing AI news and selecting the most impactful stories for a newsletter. Always respond with valid JSON.",
         prompt,
         maxTokens: 8192,
