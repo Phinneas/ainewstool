@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { chatWithKimi } from "../llm/kimi.js";
+import { chatWithClaude } from "../llm/anthropic.js";
 import { log } from "../logger.js";
 
 export interface SelectedStory {
@@ -64,7 +64,7 @@ You MUST respond with valid JSON in this exact format:
 
 Select exactly 4 stories. The first story should be the most impactful/important one (the lead story).`;
 
-  const response = await chatWithKimi({
+  const response = await chatWithClaude({
     system:
       "You are an AI assistant specialized in analyzing AI news and selecting the most impactful stories for a newsletter. Always respond with valid JSON.",
     prompt,

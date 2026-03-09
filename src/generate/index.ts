@@ -66,7 +66,7 @@ async function loadContentFromR2(
   const entries: ContentEntry[] = [];
 
   for (const date of dates) {
-    const listed = await bucket.list({ prefix: `${date}/` });
+    const listed = await bucket.list({ prefix: `${date}_` });
     const mdKeys = listed.objects
       .map((o: R2Object) => o.key)
       .filter((k: string) => k.endsWith(".md"));
@@ -218,7 +218,7 @@ export async function generateNewsletter(
 
   introTimer.end();
 
-  // Step 6: Write "The Quick Scribbles" via Claude
+  // Step 6: Write "Quick Scribbles" TL;DR summary of main stories
   log.info("Writing shortlist...");
   const shortlistTimer = log.timer("write-shortlist");
   const allContentText = entries

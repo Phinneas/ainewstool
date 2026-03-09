@@ -39,17 +39,27 @@ export interface Env {
 
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(req.url);
+    
     // Health check endpoint
-    if (req.method === 'GET' && new URL(req.url).pathname === '/health') {
+    if (req.method === 'GET' && url.pathname === '/health') {
       return new Response(JSON.stringify({ status: 'ok' }), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
     
     // Manual trigger endpoint
-    if (req.method === 'POST' && new URL(req.url).pathname === '/trigger') {
+    if (req.method === 'POST' && url.pathname === '/trigger') {
       ctx.waitUntil(handleScheduled(env));
       return new Response(JSON.stringify({ message: 'Ingestion triggered' }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // Manual generate endpoint
+    if (req.method === 'POST' && url.pathname === '/generate') {
+      ctx.waitUntil(handleGenerateCron(env));
+      return new Response(JSON.stringify({ message: 'Newsletter generation triggered' }), {
         headers: { 'Content-Type': 'application/json' },
       });
     }

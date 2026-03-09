@@ -21,25 +21,70 @@ interface PublishMessage {
  * Ghost accepts HTML in the `html` field of the Admin API.
  */
 function markdownToHtml(md: string): string {
-  return md
+  // First pass: convert headers
+  let html = md
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+  // Handle horizontal rules
+  html = html.replace(/^---$/gm, '<hr>');
+
+  // Handle bullet lists - group consecutive list items
+  html = html.replace(/(^- .+\n?)+/gm, (match) => {
+    const items = match.trim().split('\n').map(item => 
+      `<li>${item.replace(/^- /, '')}</li>`
+    ).join('\n');
+    return `<ul>\n${items}\n</ul>`;
+  });
+
+  // Convert inline formatting (must use non-greedy)
+  html = html
     .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>')
-    .replace(/^---$/gm, '<hr>')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br>')
-    .replace(/^/, '<p>')
-    .replace(/$/, '</p>')
-    .replace(/<p><\/p>/g, '')
-    .replace(/<p><hr><\/p>/g, '<hr>')
-    .replace(/<p>(<h[1-3]>)/g, '$1')
-    .replace(/(<\/h[1-3]>)<\/p>/g, '$1');
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  // Handle paragraphs - process line by line and group properly
+  const lines = html.split('\n');
+  const result: string[] = [];
+  let inParagraph = false;
+  let paragraphContent: string[] = [];
+
+  for (const line of lines) {
+    // Check if this is a block element (starts a new block)
+    const isBlockStart = line.match(/^<(h[1-3]|ul|hr)/);
+    const isBlockEnd = line.match(/<\/(h[1-3]|ul)>$/);
+    const isEmpty = line.trim() === '';
+
+    if (isBlockStart || isBlockEnd) {
+      // Close any open paragraph first
+      if (inParagraph) {
+        result.push('<p>' + paragraphContent.join('<br>') + '</p>');
+        paragraphContent = [];
+        inParagraph = false;
+      }
+      result.push(line);
+    } else if (isEmpty) {
+      // Empty line - close paragraph if open
+      if (inParagraph && paragraphContent.length > 0) {
+        result.push('<p>' + paragraphContent.join('<br>') + '</p>');
+        paragraphContent = [];
+        inParagraph = false;
+      }
+    } else {
+      // Regular content - add to paragraph
+      paragraphContent.push(line);
+      inParagraph = true;
+    }
+  }
+
+  // Close any remaining paragraph
+  if (inParagraph && paragraphContent.length > 0) {
+    result.push('<p>' + paragraphContent.join('<br>') + '</p>');
+  }
+
+  return result.join('\n');
 }
 
 /**
@@ -101,6 +146,8 @@ export async function handlePublishQueue(
   for (const msg of batch.messages) {
     const message = msg.body;
     console.log(`[Stage 6] Publishing for generate ID: ${message.generateId}`);
+      
+      console.log('[Stage 6] Ghost key format check:', env.GHOST_ADMIN_API_KEY ? `${env.GHOST_ADMIN_API_KEY.substring(0,20)}...` : 'EMPTY/UNDEFINED');
 
     try {
       // Dedup check
@@ -115,10 +162,32 @@ export async function handlePublishQueue(
       const lines = message.newsletter.split('\n');
       const title = lines[0].replace(/^#\s+/, '').trim() || `AI Newsletter — ${message.dates[0]}`;
 
-      // Parse custom_excerpt from second non-empty line (preheader)
-      const preheader = lines.find((l, i) => i > 0 && l.trim().length > 0)?.trim() ?? '';
+      // Parse custom_excerpt from the line that starts with "PLUS:"
+      const preheaderIndex = lines.findIndex((l, i) => i > 0 && l.trim().startsWith('PLUS:'));
+      const preheader = preheaderIndex >= 0 ? lines[preheaderIndex].trim() : '';
 
-      const html = markdownToHtml(message.newsletter);
+      // Strip title and preheader from body - Ghost displays them separately
+      const bodyLines = lines.filter((line, index) => {
+        if (index === 0 && line.startsWith('# ')) return false;
+        if (index === preheaderIndex) return false;
+        return true;
+      });
+      
+      const bodyMarkdown = bodyLines.join('\n');
+
+      const html = markdownToHtml(bodyMarkdown.trim());
+      
+      // Use mobiledoc format with HTML card — Ghost's html field is unreliable
+      // and silently drops content. Mobiledoc HTML cards are stored as-is.
+      const mobiledoc = JSON.stringify({
+        version: '0.3.1',
+        atoms: [],
+        cards: [['html', { html }]],
+        markups: [],
+        sections: [[10, 0]],
+      });
+      
+      console.log(`[Stage 6] Body: ${bodyMarkdown.length} chars → HTML: ${html.length} chars`);
 
       // Create Ghost JWT
       const jwt = await createGhostJwt(env.GHOST_ADMIN_API_KEY);
@@ -136,7 +205,7 @@ export async function handlePublishQueue(
           posts: [
             {
               title,
-              html,
+              mobiledoc,
               status: 'draft',
               custom_excerpt: preheader || null,
               tags: [{ name: 'Newsletter' }, { name: 'AI' }],

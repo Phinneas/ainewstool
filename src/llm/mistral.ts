@@ -1,13 +1,14 @@
 import { Mistral } from "@mistralai/mistralai";
 import { config } from "../config.js";
+import { apiKeys } from "./api-keys.js";
 import type { LLMClient } from "./types.js";
 
 // Lazy client factory — reads the API key at call time, not at module load time.
 // This is necessary in Cloudflare Workers where config.mistral.apiKey is '' at
-// cold-start (isWorker=true), but process.env.MISTRAL_API_KEY is injected by the
-// queue handler before any LLM calls are made.
+// cold-start (isWorker=true), but apiKeys.mistral is set by the queue handler
+// before any LLM calls are made.
 function getClient(): Mistral {
-  const apiKey = config.mistral.apiKey || process.env?.MISTRAL_API_KEY || '';
+  const apiKey = config.mistral.apiKey || apiKeys.mistral || '';
   return new Mistral({ apiKey });
 }
 

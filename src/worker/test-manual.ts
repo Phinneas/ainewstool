@@ -70,12 +70,32 @@ const mockEnv: Env = {
     },
   } as any,
   
+  GENERATE_QUEUE: {
+    send: async (message: any) => {
+      console.log('📤 Mock: Sending to generate-queue', JSON.stringify(message).substring(0, 200));
+    },
+    sendBatch: async (messages: any[]) => {
+      console.log(`📤 Mock: Sending batch of ${messages.length} to generate-queue`);
+    },
+  } as any,
+
+  PUBLISH_QUEUE: {
+    send: async (message: any) => {
+      console.log('📤 Mock: Sending to publish-queue', JSON.stringify(message).substring(0, 200));
+    },
+    sendBatch: async (messages: any[]) => {
+      console.log(`📤 Mock: Sending batch of ${messages.length} to publish-queue`);
+    },
+  } as any,
+
   FIRECRAWL_API_KEY: process.env.FIRECRAWL_API_KEY || '',
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
   MISTRAL_API_KEY: process.env.MISTRAL_API_KEY || '',
   MOONSHOT_API_KEY: process.env.MOONSHOT_API_KEY || '',
   REDDIT_CLIENT_ID: process.env.REDDIT_CLIENT_ID,
   REDDIT_CLIENT_SECRET: process.env.REDDIT_CLIENT_SECRET,
+  GHOST_ADMIN_API_KEY: process.env.GHOST_ADMIN_API_KEY || '',
+  GHOST_API_URL: process.env.GHOST_API_URL || '',
 };
 
 async function main() {

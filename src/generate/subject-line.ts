@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { chatWithKimi } from "../llm/kimi.js";
+import { chatWithClaude } from "../llm/anthropic.js";
 import { log } from "../logger.js";
 import type { SelectedStory } from "./select-stories.js";
 
@@ -78,7 +78,7 @@ Respond with valid JSON:
 
 The subject line MUST be 7-9 words and focus exclusively on the lead story (first story).`;
 
-  const response = await chatWithKimi({
+  const response = await chatWithClaude({
     system:
       "You are an expert email copywriter. Always respond with valid JSON.",
     prompt,

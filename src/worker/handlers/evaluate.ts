@@ -6,17 +6,17 @@
 import { Env } from '../index.js';
 import { evaluateContentRelevance } from '../../../src/ingest/evaluate.js';
 import { extractExternalSources } from '../../../src/ingest/extract-sources.js';
+import { apiKeys } from '../../../src/llm/api-keys.js';
 import type { EvaluateMessage, UploadMessage } from '../types.js';
 
 export async function handleEvaluateQueue(batch: MessageBatch<EvaluateMessage>, env: Env): Promise<void> {
   console.log(`[Stage 3] Processing evaluation batch with ${batch.messages.length} messages`);
 
-  // Inject Worker env bindings into process.env so that src/config.ts
-  // (which returns '' for all keys when isWorker=true) is bypassed.
-  // This matches the same pattern used in generate.ts.
-  process.env.MISTRAL_API_KEY = env.MISTRAL_API_KEY;
-  process.env.ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY;
-  process.env.MOONSHOT_API_KEY = env.MOONSHOT_API_KEY;
+  // Set global API keys so evaluate pipeline can call LLM APIs
+  // (Workers don't reliably support process.env across modules)
+  apiKeys.mistral = env.MISTRAL_API_KEY;
+  apiKeys.anthropic = env.ANTHROPIC_API_KEY;
+  apiKeys.moonshot = env.MOONSHOT_API_KEY;
   if (env.Exa) process.env.EXA_API_KEY = env.Exa;
   if (env.TAVILY_API_KEY) process.env.TAVILY_API_KEY = env.TAVILY_API_KEY;
 

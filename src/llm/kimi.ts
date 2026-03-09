@@ -1,7 +1,16 @@
 import { config } from "../config.js";
+import { apiKeys } from "./api-keys.js";
 import type { LLMClient } from "./types.js";
 
 const BASE_URL = "https://api.moonshot.cn/v1";
+
+// Lazy key reading — reads the API key at call time, not at module load time.
+// This is necessary in Cloudflare Workers where config.moonshot.apiKey is '' at
+// cold-start (isWorker=true), but apiKeys.moonshot is set by the queue handler
+// before any LLM calls are made.
+function getApiKey(): string {
+  return config.moonshot.apiKey || apiKeys.moonshot || '';
+}
 
 export const kimiClient: LLMClient = {
   async chat({ system, prompt, maxTokens = 8192 }) {
@@ -16,7 +25,7 @@ export const kimiClient: LLMClient = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${config.moonshot.apiKey}`,
+        Authorization: `Bearer ${getApiKey()}`,
       },
       body: JSON.stringify({
         model: "kimi-k2",

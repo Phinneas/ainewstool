@@ -20,14 +20,13 @@ export function assembleNewsletter(params: {
 ${preHeaderText}
 
 ---
+## Quick Scribbles
+
+${shortlist}
+---
 ${intro}
 ${featuredMCPBlock}
 ---
 ${sections}
-${aiDiscoveriesBlock}${aiForGoodBlock}
----
-## The Quick Scribbles
-
-${shortlist}
-`;
+${aiDiscoveriesBlock}${aiForGoodBlock}`;
 }

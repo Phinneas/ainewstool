@@ -9,6 +9,7 @@
 
 import { Env } from '../index.js';
 import { generateNewsletter } from '../../generate/index.js';
+import { apiKeys } from '../../llm/api-keys.js';
 
 interface GenerateMessage {
   type: 'generate';
@@ -37,11 +38,14 @@ export async function handleGenerateQueue(
         continue;
       }
 
-      // Inject env secrets so generate pipeline can call LLM APIs
-      // (Workers use env bindings, not process.env)
-      process.env.ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY;
-      process.env.MISTRAL_API_KEY = env.MISTRAL_API_KEY;
-      process.env.MOONSHOT_API_KEY = env.MOONSHOT_API_KEY;
+      // Set global API keys so generate pipeline can call LLM APIs
+      // (Workers don't reliably support process.env across modules)
+      apiKeys.anthropic = env.ANTHROPIC_API_KEY;
+      apiKeys.mistral = env.MISTRAL_API_KEY;
+      apiKeys.moonshot = env.MOONSHOT_API_KEY;
+      
+      console.log('[Stage 5] API keys set - Anthropic:', apiKeys.anthropic ? `${apiKeys.anthropic.substring(0,10)}...` : 'EMPTY');
+      console.log('[Stage 5] API keys set - Mistral:', apiKeys.mistral ? `${apiKeys.mistral.substring(0,10)}...` : 'EMPTY');
       if (env.Exa) process.env.EXA_API_KEY = env.Exa;
       if (env.TAVILY_API_KEY) process.env.TAVILY_API_KEY = env.TAVILY_API_KEY;
 

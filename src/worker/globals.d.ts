@@ -14,7 +14,7 @@ declare global {
   };
 
   type R2Bucket = {
-    get(key: string): Promise<R2Object | null>;
+    get(key: string): Promise<R2ObjectBody | null>;
     put(key: string, value: string | ArrayBuffer | ReadableStream, options?: R2PutOptions): Promise<R2Object>;
     delete(key: string): Promise<void>;
     list(options?: R2ListOptions): Promise<R2Objects>;
@@ -42,6 +42,15 @@ declare global {
     httpEtag: string;
     httpMetadata?: { contentType?: string };
     customMetadata?: Record<string, string>;
+  }
+
+  interface R2ObjectBody extends R2Object {
+    text(): Promise<string>;
+    json<T = unknown>(): Promise<T>;
+    arrayBuffer(): Promise<ArrayBuffer>;
+    blob(): Promise<Blob>;
+    body: ReadableStream;
+    bodyUsed: boolean;
   }
 
   interface R2PutOptions {

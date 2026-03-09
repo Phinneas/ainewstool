@@ -34,6 +34,13 @@ interface ExaApiResponse {
   results: ExaApiResult[];
 }
 
+export interface ExaSearchOptions {
+  /** ISO 8601 date string (YYYY-MM-DD). Only return results published on or after this date. */
+  startPublishedDate?: string;
+  /** ISO 8601 date string (YYYY-MM-DD). Only return results published on or before this date. */
+  endPublishedDate?: string;
+}
+
 /**
  * Search the web via Exa AI and return results in the same shape as
  * FirecrawlSearchResult so they can be merged directly in discover.ts.
@@ -41,12 +48,14 @@ interface ExaApiResponse {
  * Uses Exa's "auto" search type which picks between neural and keyword
  * search based on the query — best general-purpose setting.
  *
- * @param query  - Search query string
- * @param limit  - Max results to return (default 5)
+ * @param query   - Search query string
+ * @param limit   - Max results to return (default 5)
+ * @param options - Optional filters: startPublishedDate, endPublishedDate
  */
 export async function exaSearch(
   query: string,
-  limit = 5
+  limit = 5,
+  options: ExaSearchOptions = {}
 ): Promise<FirecrawlSearchResult[]> {
   // Resolve key: config (Node.js) or Worker globals
   const apiKey: string =
@@ -59,7 +68,7 @@ export async function exaSearch(
     return [];
   }
 
-  const body = {
+  const body: Record<string, unknown> = {
     query,
     numResults: limit,
     // "auto" lets Exa choose neural vs keyword based on the query
@@ -69,6 +78,14 @@ export async function exaSearch(
       text: { maxCharacters: 3000 },
     },
   };
+
+  // Optional date filters — narrows results to a specific publication window
+  if (options.startPublishedDate) {
+    body.startPublishedDate = `${options.startPublishedDate}T00:00:00.000Z`;
+  }
+  if (options.endPublishedDate) {
+    body.endPublishedDate = `${options.endPublishedDate}T23:59:59.999Z`;
+  }
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
