@@ -7,6 +7,7 @@ import { Env } from '../index.js';
 import { evaluateContentRelevance } from '../../../src/ingest/evaluate.js';
 import { extractExternalSources } from '../../../src/ingest/extract-sources.js';
 import { apiKeys } from '../../../src/llm/api-keys.js';
+import { createSurrealClient } from '../lib/surreal.js';
 import type { EvaluateMessage, UploadMessage } from '../types.js';
 
 export async function handleEvaluateQueue(batch: MessageBatch<EvaluateMessage>, env: Env): Promise<void> {
@@ -20,12 +21,14 @@ export async function handleEvaluateQueue(batch: MessageBatch<EvaluateMessage>, 
   if (env.Exa) process.env.EXA_API_KEY = env.Exa;
   if (env.TAVILY_API_KEY) process.env.TAVILY_API_KEY = env.TAVILY_API_KEY;
 
+  const db = createSurrealClient(env);
+
   for (const msg of batch.messages) {
     const message = msg.body;
-    
+
     try {
       const evaluatedItems = [];
-      
+
       for (const { item, scrapeKey } of message.items) {
         console.log(`[Stage 3] Evaluating: ${item.title}`);
 
@@ -73,6 +76,15 @@ export async function handleEvaluateQueue(batch: MessageBatch<EvaluateMessage>, 
             }),
             { expirationTtl: 86400 } // 24 hours
           );
+          // SurrealDB: mark rejected (non-blocking)
+          if (db) {
+            db.updateArticle(item.url, {
+              status: 'rejected',
+              relevanceScore: 0.0,
+              evalModel: 'mistral',
+              rejectionReason: evaluation.reasoning.slice(0, 500),
+            }).catch(err => console.warn(`[Stage 3] SurrealDB reject update failed: ${err instanceof Error ? err.message : String(err)}`));
+          }
           continue;
         }
 
@@ -91,6 +103,15 @@ export async function handleEvaluateQueue(batch: MessageBatch<EvaluateMessage>, 
         await env.INGEST_STATE.put(cacheKey, JSON.stringify(result), {
           expirationTtl: 604800, // 7 days
         });
+
+        // SurrealDB: mark evaluated (non-blocking)
+        if (db) {
+          db.updateArticle(item.url, {
+            status: 'evaluated',
+            relevanceScore: 1.0,
+            evalModel: 'mistral',
+          }).catch(err => console.warn(`[Stage 3] SurrealDB eval update failed: ${err instanceof Error ? err.message : String(err)}`));
+        }
 
         evaluatedItems.push(result);
       }
