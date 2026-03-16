@@ -37,6 +37,14 @@ export interface Env {
   GHOST_API_URL: string;
   BEEHIIV_API_KEY?: string;
   BEEHIIV_PUBLICATION_ID?: string;
+  IDEOGRAM_API_KEY?: string;
+
+  // SurrealDB
+  SURREALDB_URL?: string;
+  SURREALDB_NS?: string;
+  SURREALDB_DB?: string;
+  SURREALDB_USER?: string;
+  SURREALDB_PASS?: string;
 }
 
 export default {

@@ -8,7 +8,6 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = [
   "0 7 * * *",   # Ingest every morning at 7am UTC
-  "0 19 * * *",  # Ingest every evening at 7pm UTC
   "0 8 * * 3",   # Generate newsletter Wednesday 8am UTC
   "0 8 * * 6",   # Generate newsletter Saturday 8am UTC
 ]
@@ -80,6 +79,12 @@ id = "d858fcdf0fc84221908e17c523f05aa6"
 # - GHOST_API_URL
 # - BEEHIIV_API_KEY          (optional — wrangler secret put BEEHIIV_API_KEY)
 # - BEEHIIV_PUBLICATION_ID   (optional — wrangler secret put BEEHIIV_PUBLICATION_ID)
+# - IDEOGRAM_API_KEY         (optional — wrangler secret put IDEOGRAM_API_KEY)
+# - SURREALDB_URL            (wrangler secret put SURREALDB_URL)
+# - SURREALDB_NS             (wrangler secret put SURREALDB_NS)
+# - SURREALDB_DB             (wrangler secret put SURREALDB_DB)
+# - SURREALDB_USER           (wrangler secret put SURREALDB_USER)
+# - SURREALDB_PASS           (wrangler secret put SURREALDB_PASS)
 
 # Enable observability (logs)
 [observability]
@@ -98,7 +103,6 @@ name = "ainewsletter-ingest-prod"
 [env.production.triggers]
 crons = [
   "0 7 * * *",   # Ingest every morning at 7am UTC
-  "0 19 * * *",  # Ingest every evening at 7pm UTC
   "0 8 * * 3",   # Generate Wednesday 8am UTC
   "0 8 * * 6",   # Generate Saturday 8am UTC
 ]

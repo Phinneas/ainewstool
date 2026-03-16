@@ -7,6 +7,7 @@ declare global {
     anthropic: string;
     mistral: string;
     moonshot: string;
+    ideogram: string;
   };
 }
 
@@ -16,6 +17,7 @@ if (!globalThis.__apiKeys) {
     anthropic: '',
     mistral: '',
     moonshot: '',
+    ideogram: '',
   };
 }
 

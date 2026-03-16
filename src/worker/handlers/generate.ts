@@ -43,24 +43,40 @@ export async function handleGenerateQueue(
       apiKeys.anthropic = env.ANTHROPIC_API_KEY;
       apiKeys.mistral = env.MISTRAL_API_KEY;
       apiKeys.moonshot = env.MOONSHOT_API_KEY;
+      apiKeys.ideogram = env.IDEOGRAM_API_KEY ?? '';
       
       console.log('[Stage 5] API keys set - Anthropic:', apiKeys.anthropic ? `${apiKeys.anthropic.substring(0,10)}...` : 'EMPTY');
       console.log('[Stage 5] API keys set - Mistral:', apiKeys.mistral ? `${apiKeys.mistral.substring(0,10)}...` : 'EMPTY');
       if (env.Exa) process.env.EXA_API_KEY = env.Exa;
       if (env.TAVILY_API_KEY) process.env.TAVILY_API_KEY = env.TAVILY_API_KEY;
 
-      // Fetch previous newsletter from KV for deduplication guidance
+      // Fetch previous newsletter from KV for LLM deduplication guidance
       const previousNewsletter = await env.INGEST_STATE.get('newsletter:previous') ?? undefined;
+
+      // Load hard-dedup set: R2 keys used in any of the last 4 newsletters
+      // Prevents the same article appearing in more than one edition
+      const usedKeysList = await env.INGEST_STATE.list({ prefix: 'newsletter:used-keys:' });
+      const usedKeySets = await Promise.all(
+        usedKeysList.keys.map(k => env.INGEST_STATE.get(k.name))
+      );
+      const usedArticleKeys = new Set<string>(
+        usedKeySets
+          .filter((v): v is string => v !== null)
+          .flatMap(v => { try { return JSON.parse(v) as string[]; } catch { return []; } })
+      );
+      console.log(`[Stage 5] Hard-dedup: ${usedArticleKeys.size} article keys already used in previous editions`);
 
       // Run the full generation pipeline
       console.log('[Stage 5] Starting newsletter generation...');
-      const newsletter = await generateNewsletter(
+      const { newsletter, usedIdentifiers } = await generateNewsletter(
         message.dates,
         env.CONTENT_BUCKET,
-        previousNewsletter
+        previousNewsletter,
+        usedArticleKeys
       );
 
       console.log(`[Stage 5] Newsletter generated (${newsletter.length} chars)`);
+      console.log(`[Stage 5] Used ${usedIdentifiers.length} article identifiers in this edition`);
 
       // Mark as generated
       await env.INGEST_STATE.put(dedupKey, JSON.stringify({
@@ -68,10 +84,17 @@ export async function handleGenerateQueue(
         length: newsletter.length,
       }), { expirationTtl: 60 * 60 * 24 * 14 }); // 14 days
 
-      // Store as previous newsletter for next run's dedup
+      // Store as previous newsletter for next run's LLM dedup guidance
       await env.INGEST_STATE.put('newsletter:previous', newsletter, {
         expirationTtl: 60 * 60 * 24 * 14,
       });
+
+      // Hard-dedup: store the exact R2 identifiers used so future runs skip them
+      await env.INGEST_STATE.put(
+        `newsletter:used-keys:${message.generateId}`,
+        JSON.stringify(usedIdentifiers),
+        { expirationTtl: 60 * 60 * 24 * 30 } // 30 days
+      );
 
       // Enqueue for Ghost publishing
       await env.PUBLISH_QUEUE.send({

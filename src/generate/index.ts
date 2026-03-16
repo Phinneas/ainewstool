@@ -10,6 +10,8 @@ import { assembleNewsletter } from "./assemble.js";
 import { fetchFeaturedMCP, formatFeaturedMCPSection } from "../ingest/featured-mcp.js";
 import { fetchAiForGoodStories, formatAiForGoodSection } from "./ai-for-good.js";
 import { fetchAiDiscoveries, formatAiDiscoveriesSection } from "./ai-discoveries.js";
+import { generateStoryImage } from "../worker/lib/storyImage.js";
+import { apiKeys } from "../llm/api-keys.js";
 
 interface ContentEntry {
   identifier: string;
@@ -120,11 +122,17 @@ async function scrapeExternalSources(
   return results.length > 0 ? results.join("\n\n") : "N/A";
 }
 
+export interface GenerateResult {
+  newsletter: string;
+  usedIdentifiers: string[]; // R2 keys of articles that appeared in this edition
+}
+
 export async function generateNewsletter(
   dateOrDates: string | string[],
   bucketOrPrevious?: R2Bucket | string,
-  previousNewsletterArg?: string
-): Promise<string> {
+  previousNewsletterArg?: string,
+  usedIdentifierSet?: Set<string>  // keys used in previous editions — excluded from this run
+): Promise<GenerateResult> {
   log.info("Starting Newsletter Generation");
   const totalTimer = log.timer("newsletter-generation");
 
@@ -139,11 +147,19 @@ export async function generateNewsletter(
     ? previousNewsletterArg
     : (bucketOrPrevious as string | undefined);
 
-  // Step 1: Load all content
+  // Step 1: Load all content, excluding keys already used in previous editions
   const loadTimer = log.timer("load-content");
-  const entries = isWorker
+  let entries = isWorker
     ? await loadContentFromR2(dates, bucket!)
     : await loadContentForDate(dates[0]);
+
+  if (usedIdentifierSet && usedIdentifierSet.size > 0) {
+    const beforeCount = entries.length;
+    entries = entries.filter(e => !usedIdentifierSet.has(e.identifier));
+    const excluded = beforeCount - entries.length;
+    if (excluded > 0) log.info(`Hard-dedup: excluded ${excluded} articles already used in previous editions`);
+  }
+
   loadTimer.end();
   if (entries.length === 0) {
     throw new Error(`No content found for date range: ${dates.join(", ")}`);
@@ -200,7 +216,21 @@ export async function generateNewsletter(
       date: displayDate,
     });
 
-    storySections.push(section.content);
+    // Optionally prepend an Ideogram illustration to the section.
+    // Only attempted when IDEOGRAM_API_KEY is set — failure is non-fatal.
+    let sectionContent = section.content;
+    if (apiKeys.ideogram) {
+      const imageUrl = await generateStoryImage(
+        story.title,
+        story.summary,
+        apiKeys.ideogram
+      );
+      if (imageUrl) {
+        sectionContent = `![Story illustration](${imageUrl})\n\n${sectionContent}`;
+      }
+    }
+
+    storySections.push(sectionContent);
   }
 
   sectionsTimer.end();
@@ -275,5 +305,9 @@ export async function generateNewsletter(
 
   totalTimer.end();
   log.info("Newsletter Generation Complete");
-  return newsletter;
+
+  // Collect identifiers of articles that actually appeared in this edition
+  const usedIdentifiers = selection.stories.flatMap(s => s.identifiers);
+
+  return { newsletter, usedIdentifiers };
 }

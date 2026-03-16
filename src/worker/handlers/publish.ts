@@ -8,6 +8,8 @@
  */
 
 import { Env } from '../index.js';
+import { generateHeaderImage } from '../lib/headerImage.js';
+import { uploadImageToGhost } from '../lib/ghostImageUpload.js';
 
 interface PublishMessage {
   type: 'publish';
@@ -20,6 +22,7 @@ interface PublishMessage {
 interface ParsedNewsletter {
   title: string;
   preheader: string;
+  topHeadline: string;  // first story section heading, used in header image
   bodyMarkdown: string;
   html: string;
 }
@@ -109,7 +112,13 @@ function parseNewsletter(message: PublishMessage): ParsedNewsletter {
   const bodyMarkdown = bodyLines.join('\n');
   const html = markdownToHtml(bodyMarkdown.trim());
 
-  return { title, preheader, bodyMarkdown, html };
+  // Extract first ## heading as the top headline tease for the header image
+  const topHeadlineLine = bodyLines.find(l => l.startsWith('## '));
+  const topHeadline = topHeadlineLine
+    ? topHeadlineLine.replace(/^##\s+/, '').trim()
+    : title;
+
+  return { title, preheader, topHeadline, bodyMarkdown, html };
 }
 
 /**
@@ -169,7 +178,8 @@ async function createGhostJwt(adminKey: string): Promise<string> {
 async function publishToGhost(
   message: PublishMessage,
   parsed: ParsedNewsletter,
-  env: Env
+  env: Env,
+  featureImageUrl: string | null = null
 ): Promise<boolean> {
   const { title, preheader, html } = parsed;
 
@@ -213,6 +223,7 @@ async function publishToGhost(
             status: 'draft',
             custom_excerpt: preheader || null,
             tags: [{ name: 'Newsletter' }, { name: 'AI' }],
+            ...(featureImageUrl ? { feature_image: featureImageUrl } : {}),
           },
         ],
       }),
@@ -259,7 +270,8 @@ async function publishToGhost(
 async function publishToBeehiiv(
   message: PublishMessage,
   parsed: ParsedNewsletter,
-  env: Env
+  env: Env,
+  featureImageUrl: string | null = null
 ): Promise<boolean> {
   if (!env.BEEHIIV_API_KEY || !env.BEEHIIV_PUBLICATION_ID) {
     console.warn('[Stage 6] Beehiiv: BEEHIIV_API_KEY or BEEHIIV_PUBLICATION_ID not set — skipping');
@@ -292,6 +304,7 @@ async function publishToBeehiiv(
         free_web_content: html,
         free_email_content: html,
         displayed_date: Math.floor(Date.now() / 1000),
+        ...(featureImageUrl ? { thumbnail_url: featureImageUrl } : {}),
       }),
     });
 
@@ -339,20 +352,41 @@ export async function handlePublishQueue(
 
     const parsed = parseNewsletter(message);
 
+    // Generate Satori header image once — shared by Ghost (feature_image) and Beehiiv (thumbnail_url)
+    let featureImageUrl: string | null = null;
+    try {
+      const dateLabel = message.dates[0] ?? new Date().toISOString().slice(0, 10);
+      const pngBytes = await generateHeaderImage({
+        newsletterName: 'BrainScriblr',
+        date: dateLabel,
+        topHeadline: parsed.topHeadline,
+        kv: env.INGEST_STATE,
+      });
+
+      if (pngBytes) {
+        const jwt = await createGhostJwt(env.GHOST_ADMIN_API_KEY);
+        const filename = `header-${message.generateId}.png`;
+        featureImageUrl = await uploadImageToGhost(pngBytes, filename, jwt, env.GHOST_API_URL);
+        if (featureImageUrl) {
+          console.log(`[Stage 6] Header image uploaded: ${featureImageUrl}`);
+        }
+      }
+    } catch (imgError) {
+      console.warn('[Stage 6] Header image generation/upload failed — continuing without it:', imgError instanceof Error ? imgError.message : String(imgError));
+    }
+
     const [ghostOk, beehiivOk] = await Promise.all([
-      publishToGhost(message, parsed, env),
-      publishToBeehiiv(message, parsed, env),
+      publishToGhost(message, parsed, env, featureImageUrl),
+      publishToBeehiiv(message, parsed, env, featureImageUrl),
     ]);
 
-    if (!ghostOk && !beehiivOk) {
-      throw new Error(`Both Ghost and Beehiiv publish failed for ${message.generateId} — retrying`);
+    // Ghost is required — always retry if it failed, regardless of Beehiiv
+    if (!ghostOk) {
+      throw new Error(`Ghost publish failed for ${message.generateId} — retrying`);
     }
 
-    if (!ghostOk) {
-      console.error(`[Stage 6] Ghost failed for ${message.generateId} — Beehiiv succeeded, no retry`);
-    }
     if (!beehiivOk) {
-      console.error(`[Stage 6] Beehiiv failed for ${message.generateId} — Ghost succeeded, no retry`);
+      console.error(`[Stage 6] Beehiiv failed for ${message.generateId} — Ghost succeeded, continuing`);
     }
   }
 }

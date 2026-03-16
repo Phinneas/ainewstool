@@ -5,6 +5,7 @@
 
 import { Env } from '../index.js';
 import { ALL_FEEDS } from '../lib/feeds-bundler.js';
+import { createSurrealClient } from '../lib/surreal.js';
 import type { ScrapeMessage } from '../types.js';
 
 // Batch size for queue messages (reduced to stay under 128KB limit)
@@ -33,9 +34,22 @@ export async function handleScheduled(env: Env): Promise<void> {
   try {
     console.log('[Stage 1] Step 1: Fetching all feeds...');
     // Fetch all feed items
-    const items = await fetchAllFeedsWorker(env);
-    console.log(`[Stage 1] ✓ Fetched ${items.length} raw items`);
-    
+    const allFetchedItems = await fetchAllFeedsWorker(env);
+    console.log(`[Stage 1] ✓ Fetched ${allFetchedItems.length} raw items`);
+
+    // Drop articles older than 30 days — prevents RSS feeds that include
+    // historical posts (e.g. HuggingFace blog) from flooding the bucket.
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const items = allFetchedItems.filter(item => {
+      if (!item.publishedTimestamp) return true; // keep if no date
+      const ts = new Date(item.publishedTimestamp).getTime();
+      return isNaN(ts) || ts >= cutoff;
+    });
+    const dropped = allFetchedItems.length - items.length;
+    if (dropped > 0) {
+      console.log(`[Stage 1] ✓ Dropped ${dropped} items older than 30 days (${items.length} remaining)`);
+    }
+
     if (items.length === 0) {
       console.warn('[Stage 1] ⚠️ No items fetched - this is unexpected!');
       // Store debug info
@@ -77,18 +91,58 @@ export async function handleScheduled(env: Env): Promise<void> {
     const batches = createBatches(newItems, SCRAPE_BATCH_SIZE);
     console.log(`[Stage 1] ✓ Created ${batches.length} batches of ${SCRAPE_BATCH_SIZE} items each`);
     
-    console.log('[Stage 1] Step 4: Enqueueing to scrape-queue...');
+    console.log('[Stage 1] Step 4: Claiming items and enqueueing to scrape-queue...');
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
       console.log(`[Stage 1]   → Enqueueing batch ${i + 1}/${batches.length} (${batch.length} items)`);
-      
+
+      // Claim each item in KV immediately so the next ingest run
+      // won't re-enqueue them while they're still in-flight through the pipeline.
+      // Stage 4 overwrites this with a permanent entry on successful upload.
+      await Promise.all(batch.map(item =>
+        env.INGEST_STATE.put(
+          `item:${item.uploadFileName}`,
+          JSON.stringify({ status: 'claimed', timestamp: Date.now() }),
+          { expirationTtl: 60 * 60 * 24 } // 24-hour claim — Stage 4 makes it permanent
+        )
+      ));
+
+      // Phase 1 dual-write: also record articles in SurrealDB (non-blocking)
+      const db = createSurrealClient(env);
+      if (db) {
+        Promise.allSettled(batch.map(async item => {
+          // Upsert source first (safe to call repeatedly)
+          const matchedFeed = ALL_FEEDS.find(f => item.feedUrl === f.feedUrl || item.sourceName === f.sourceName);
+          if (matchedFeed) {
+            await db.upsertSource({
+              name:     matchedFeed.sourceName,
+              url:      matchedFeed.feedUrl,
+              feedType: matchedFeed.feedType,
+              category: matchedFeed.category,
+            });
+          }
+          // Upsert article record
+          await db.upsertArticle({
+            title:       item.title,
+            url:         item.url,
+            uploadKey:   item.uploadFileName,
+            sourceUrl:   item.feedUrl,
+            publishedAt: item.publishedTimestamp || null,
+            isPdf:       item.url.endsWith('.pdf'),
+          });
+        })).then(results => {
+          const failed = results.filter(r => r.status === 'rejected').length;
+          if (failed > 0) console.warn(`[Stage 1] SurrealDB: ${failed}/${batch.length} writes failed (non-fatal)`);
+        });
+      }
+
       const message: ScrapeMessage = {
         type: 'batch',
         items: batch,
         batchId: `${ingestionId}-batch-${i}`,
         timestamp: Date.now(),
       };
-      
+
       await env.SCRAPE_QUEUE.send(message);
       console.log(`[Stage 1]   ✓ Batch ${i + 1} enqueued`);
     }
