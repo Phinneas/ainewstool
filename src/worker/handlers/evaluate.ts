@@ -8,13 +8,14 @@ import { evaluateContentRelevance } from '../../../src/ingest/evaluate.js';
 import { extractExternalSources } from '../../../src/ingest/extract-sources.js';
 import { apiKeys } from '../../../src/llm/api-keys.js';
 import { createSurrealClient } from '../lib/surreal.js';
+import { Logger, PipelineMetrics, ingestIdFromBatchId } from '../lib/logger.js';
 import type { EvaluateMessage, UploadMessage } from '../types.js';
 
 export async function handleEvaluateQueue(batch: MessageBatch<EvaluateMessage>, env: Env): Promise<void> {
-  console.log(`[Stage 3] Processing evaluation batch with ${batch.messages.length} messages`);
+  const log = new Logger('stage-3');
+  log.info('evaluate batch received', { messages: batch.messages.length });
 
-  // Set global API keys so evaluate pipeline can call LLM APIs
-  // (Workers don't reliably support process.env across modules)
+  // Set global API keys
   apiKeys.mistral = env.MISTRAL_API_KEY;
   apiKeys.anthropic = env.ANTHROPIC_API_KEY;
   apiKeys.moonshot = env.MOONSHOT_API_KEY;
@@ -25,98 +26,100 @@ export async function handleEvaluateQueue(batch: MessageBatch<EvaluateMessage>, 
 
   for (const msg of batch.messages) {
     const message = msg.body;
+    const ingestId = ingestIdFromBatchId(message.batchId);
+    const batchLog = log.withContext(ingestId);
+    const metrics = new PipelineMetrics(env.INGEST_STATE, ingestId);
 
     try {
       const evaluatedItems = [];
+      let cacheHits = 0;
+      let rejected = 0;
 
       for (const { item, scrapeKey } of message.items) {
-        console.log(`[Stage 3] Evaluating: ${item.title}`);
+        batchLog.debug('evaluating item', { title: item.title });
 
-        // Check evaluate cache first
         const cacheKey = `evaluate:${item.uploadFileName}`;
         const cached = await env.INGEST_STATE.get(cacheKey);
 
         if (cached) {
-          console.log(`[Stage 3] Already evaluated: ${item.title}`);
+          batchLog.debug('evaluate cache hit', { title: item.title });
+          cacheHits++;
           const cachedResult = JSON.parse(cached);
           if (cachedResult.isRelevant) {
-            // Support both new format (scrapeKey) and old cached format (scrapeResult inline)
-            const uploadItem = {
+            evaluatedItems.push({
               item: cachedResult.item,
               scrapeKey: cachedResult.scrapeKey || scrapeKey,
               externalSources: cachedResult.externalSources,
               isRelevant: true,
               relevanceReason: cachedResult.relevanceReason,
-            };
-            evaluatedItems.push(uploadItem);
+            });
           }
           continue;
         }
 
-        // Fetch scrape result from KV (stored by Stage 2)
         const scrapeData = await env.INGEST_STATE.get(scrapeKey);
         if (!scrapeData) {
-          console.warn(`[Stage 3] No scrape data in KV for: ${item.title} (key: ${scrapeKey})`);
+          batchLog.warn('no scrape data in kv', { title: item.title, key: scrapeKey });
           continue;
         }
         const scrapeResult = JSON.parse(scrapeData);
 
-        // Evaluate relevance
         const evaluation = await evaluateContentRelevance(scrapeResult.content);
 
         if (!evaluation.isRelevant) {
-          console.log(`[Stage 3] Not relevant: ${item.title} - ${evaluation.reasoning}`);
-          // Cache the negative result (but with shorter TTL)
+          batchLog.debug('item rejected', { title: item.title, reason: evaluation.reasoning });
+          rejected++;
           await env.INGEST_STATE.put(
             cacheKey,
-            JSON.stringify({
-              item,
-              isRelevant: false,
-              reasoning: evaluation.reasoning,
-            }),
-            { expirationTtl: 86400 } // 24 hours
+            JSON.stringify({ item, isRelevant: false, reasoning: evaluation.reasoning }),
+            { expirationTtl: 86400 }
           );
-          // SurrealDB: mark rejected (non-blocking)
           if (db) {
             db.updateArticle(item.url, {
               status: 'rejected',
               relevanceScore: 0.0,
               evalModel: 'mistral',
               rejectionReason: evaluation.reasoning.slice(0, 500),
-            }).catch(err => console.warn(`[Stage 3] SurrealDB reject update failed: ${err instanceof Error ? err.message : String(err)}`));
+            }).catch(err => batchLog.warn('surrealdb reject update failed', { error: err instanceof Error ? err.message : String(err) }));
           }
           continue;
         }
 
-        // Extract external sources
         const externalSources = await extractExternalSources(scrapeResult);
-
         const result = {
           item,
-          scrapeKey,       // Pass the KV key — not the full scrapeResult — to stay within 128KB queue limit
+          scrapeKey,
           externalSources,
           isRelevant: true,
           relevanceReason: evaluation.reasoning,
         };
 
-        // Cache the positive result
-        await env.INGEST_STATE.put(cacheKey, JSON.stringify(result), {
-          expirationTtl: 604800, // 7 days
-        });
+        await env.INGEST_STATE.put(cacheKey, JSON.stringify(result), { expirationTtl: 604800 });
 
-        // SurrealDB: mark evaluated (non-blocking)
         if (db) {
           db.updateArticle(item.url, {
             status: 'evaluated',
             relevanceScore: 1.0,
             evalModel: 'mistral',
-          }).catch(err => console.warn(`[Stage 3] SurrealDB eval update failed: ${err instanceof Error ? err.message : String(err)}`));
+          }).catch(err => batchLog.warn('surrealdb eval update failed', { error: err instanceof Error ? err.message : String(err) }));
         }
 
         evaluatedItems.push(result);
       }
-      
-      // Enqueue relevant items for upload
+
+      await metrics.increment('evaluated', message.items.length);
+      await metrics.increment('relevant', evaluatedItems.length);
+      await metrics.increment('rejected', rejected);
+      if (cacheHits > 0) await metrics.increment('evaluate_cache_hits', cacheHits);
+
+      batchLog.info('evaluate batch done', {
+        batch_id: message.batchId,
+        evaluated: message.items.length,
+        relevant: evaluatedItems.length,
+        rejected,
+        cache_hits: cacheHits,
+      });
+
       if (evaluatedItems.length > 0) {
         const uploadMessage: UploadMessage = {
           type: 'batch',
@@ -124,13 +127,16 @@ export async function handleEvaluateQueue(batch: MessageBatch<EvaluateMessage>, 
           batchId: message.batchId,
           timestamp: Date.now(),
         };
-        
         await env.UPLOAD_QUEUE.send(uploadMessage);
-        console.log(`[Stage 3] Enqueued ${evaluatedItems.length} relevant items for upload`);
+        batchLog.debug('enqueued for upload', { count: evaluatedItems.length });
       }
-      
+
     } catch (error) {
-      console.error(`[Stage 3] Error processing batch ${message.batchId}:`, error);
+      const batchLog2 = log.withContext(ingestId);
+      batchLog2.error('evaluate batch error', {
+        batch_id: message.batchId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }

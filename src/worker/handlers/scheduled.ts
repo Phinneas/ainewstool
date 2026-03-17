@@ -6,6 +6,7 @@
 import { Env } from '../index.js';
 import { ALL_FEEDS } from '../lib/feeds-bundler.js';
 import { createSurrealClient } from '../lib/surreal.js';
+import { Logger, PipelineMetrics } from '../lib/logger.js';
 import type { ScrapeMessage } from '../types.js';
 
 // Batch size for queue messages (reduced to stay under 128KB limit)
@@ -24,35 +25,35 @@ interface NormalizedFeedItem {
 }
 
 export async function handleScheduled(env: Env): Promise<void> {
-  console.log('=== STAGE 1: FEED FETCH STARTED ===');
-  console.log(`Time: ${new Date().toISOString()}`);
-  
   // Generate unique ingestion ID
   const ingestionId = `ingest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  console.log(`Ingestion ID: ${ingestionId}`);
-  
-  try {
-    console.log('[Stage 1] Step 1: Fetching all feeds...');
-    // Fetch all feed items
-    const allFetchedItems = await fetchAllFeedsWorker(env);
-    console.log(`[Stage 1] ✓ Fetched ${allFetchedItems.length} raw items`);
+  const log = new Logger('stage-1').withContext(ingestionId);
+  const metrics = new PipelineMetrics(env.INGEST_STATE, ingestionId);
 
-    // Drop articles older than 30 days — prevents RSS feeds that include
-    // historical posts (e.g. HuggingFace blog) from flooding the bucket.
+  log.info('feed fetch started');
+
+  try {
+    log.info('fetching all feeds');
+    const allFetchedItems = await fetchAllFeedsWorker(env);
+    log.info('feeds fetched', { count: allFetchedItems.length });
+    await metrics.set('run_id', ingestionId);
+    await metrics.set('started_at', Date.now());
+
+    // Drop articles older than 30 days
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const items = allFetchedItems.filter(item => {
-      if (!item.publishedTimestamp) return true; // keep if no date
+      if (!item.publishedTimestamp) return true;
       const ts = new Date(item.publishedTimestamp).getTime();
       return isNaN(ts) || ts >= cutoff;
     });
     const dropped = allFetchedItems.length - items.length;
     if (dropped > 0) {
-      console.log(`[Stage 1] ✓ Dropped ${dropped} items older than 30 days (${items.length} remaining)`);
+      log.info('dropped old items', { dropped, remaining: items.length });
     }
+    await metrics.increment('fetched', items.length);
 
     if (items.length === 0) {
-      console.warn('[Stage 1] ⚠️ No items fetched - this is unexpected!');
-      // Store debug info
+      log.warn('no items fetched — unexpected');
       await env.INGEST_STATE.put(`debug:empty-fetch:${Date.now()}`, JSON.stringify({
         feedsCount: ALL_FEEDS.length,
         enabledFeedsCount: ALL_FEEDS.filter(f => f.enabled).length,
@@ -60,58 +61,48 @@ export async function handleScheduled(env: Env): Promise<void> {
       }), { expirationTtl: 86400 });
       return;
     }
-    
-    console.log('[Stage 1] Step 2: Filtering existing items...');
-    
-    // DEBUG: Check if this is first run
-    console.log('[DEBUG] Checking if KV is empty...');
+
+    log.info('filtering existing items');
     const kvList = await env.INGEST_STATE.list({ limit: 1 });
     const isFirstRun = kvList.keys.length === 0;
-    console.log(`[DEBUG] KV empty? ${isFirstRun} (found ${kvList.keys.length} keys)`);
-    
+
     let newItems: NormalizedFeedItem[];
-    
     if (isFirstRun) {
-      console.log('[Stage 1] First run detected - skipping deduplication check');
+      log.info('first run — skipping deduplication');
       newItems = items;
     } else {
-      // Filter out existing items using KV
-      newItems = await filterExistingItems(items, env);
+      newItems = await filterExistingItems(items, env, log);
     }
-    
-    console.log(`[Stage 1] ✓ ${newItems.length} new items after deduplication`);
-    
+
+    log.info('deduplication complete', { new: newItems.length, existing: items.length - newItems.length });
+    await metrics.increment('new_after_dedup', newItems.length);
+    await metrics.increment('deduped_out', items.length - newItems.length);
+
     if (newItems.length === 0) {
-      console.log('[Stage 1] No new items to process (all already exist)');
+      log.info('no new items to process');
       return;
     }
-    
-    console.log('[Stage 1] Step 3: Batching items...');
+
     // Batch and enqueue for scraping
     const batches = createBatches(newItems, SCRAPE_BATCH_SIZE);
-    console.log(`[Stage 1] ✓ Created ${batches.length} batches of ${SCRAPE_BATCH_SIZE} items each`);
-    
-    console.log('[Stage 1] Step 4: Claiming items and enqueueing to scrape-queue...');
+    log.info('batches created', { batches: batches.length, batch_size: SCRAPE_BATCH_SIZE });
+
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
-      console.log(`[Stage 1]   → Enqueueing batch ${i + 1}/${batches.length} (${batch.length} items)`);
 
-      // Claim each item in KV immediately so the next ingest run
-      // won't re-enqueue them while they're still in-flight through the pipeline.
-      // Stage 4 overwrites this with a permanent entry on successful upload.
+      // Claim each item in KV immediately
       await Promise.all(batch.map(item =>
         env.INGEST_STATE.put(
           `item:${item.uploadFileName}`,
           JSON.stringify({ status: 'claimed', timestamp: Date.now() }),
-          { expirationTtl: 60 * 60 * 24 } // 24-hour claim — Stage 4 makes it permanent
+          { expirationTtl: 60 * 60 * 24 }
         )
       ));
 
-      // Phase 1 dual-write: also record articles in SurrealDB (non-blocking)
+      // Phase 1 dual-write: SurrealDB (non-blocking)
       const db = createSurrealClient(env);
       if (db) {
         Promise.allSettled(batch.map(async item => {
-          // Upsert source first (safe to call repeatedly)
           const matchedFeed = ALL_FEEDS.find(f => item.feedUrl === f.feedUrl || item.sourceName === f.sourceName);
           if (matchedFeed) {
             await db.upsertSource({
@@ -121,7 +112,6 @@ export async function handleScheduled(env: Env): Promise<void> {
               category: matchedFeed.category,
             });
           }
-          // Upsert article record
           await db.upsertArticle({
             title:       item.title,
             url:         item.url,
@@ -132,7 +122,7 @@ export async function handleScheduled(env: Env): Promise<void> {
           });
         })).then(results => {
           const failed = results.filter(r => r.status === 'rejected').length;
-          if (failed > 0) console.warn(`[Stage 1] SurrealDB: ${failed}/${batch.length} writes failed (non-fatal)`);
+          if (failed > 0) log.warn('surrealdb writes failed', { failed, total: batch.length });
         });
       }
 
@@ -144,35 +134,36 @@ export async function handleScheduled(env: Env): Promise<void> {
       };
 
       await env.SCRAPE_QUEUE.send(message);
-      console.log(`[Stage 1]   ✓ Batch ${i + 1} enqueued`);
+      log.debug('batch enqueued', { batch: i + 1, of: batches.length, items: batch.length });
     }
-    
-    console.log('[Stage 1] Step 5: Saving ingestion state to KV...');
+
+    await metrics.increment('batches_enqueued', batches.length);
+
     // Track ingestion in KV
-    const stateData = {
+    await env.INGEST_STATE.put(`ingest:${ingestionId}`, JSON.stringify({
       status: 'started',
       totalItems: newItems.length,
       batches: batches.length,
       startTime: Date.now(),
       ingestionId,
-    };
-    
-    await env.INGEST_STATE.put(`ingest:${ingestionId}`, JSON.stringify(stateData));
-    console.log(`[Stage 1] ✓ State saved: ingest:${ingestionId}`);
-    console.log(`[Stage 1] ✓ COMPLETED successfully!`);
-    console.log('=== STAGE 1: FEED FETCH FINISHED ===');
-    
+    }));
+
+    log.info('feed fetch complete', { total_new: newItems.length, batches: batches.length });
+
   } catch (error) {
-    console.error('🔥 STAGE 1 FAILED 🔥');
-    console.error('Error:', error);
-    
-    // Store error in KV for debugging
+    const log2 = new Logger('stage-1').withContext(ingestionId);
+    log2.error('stage 1 failed', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
     await env.INGEST_STATE.put(`error:stage1:${Date.now()}`, JSON.stringify({
+      run_id: ingestionId,
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       timestamp: Date.now(),
     }), { expirationTtl: 86400 });
-    
+
     throw error;
   }
 }
@@ -185,15 +176,15 @@ async function fetchAllFeedsWorker(env: Env): Promise<NormalizedFeedItem[]> {
 
 async function filterExistingItems(
   items: NormalizedFeedItem[],
-  env: Env
+  env: Env,
+  log: Logger
 ): Promise<NormalizedFeedItem[]> {
-  console.log(`[Deduplication] Checking ${items.length} items against KV...`);
-  
+  log.debug('deduplication check', { checking: items.length });
+
   const newItems: NormalizedFeedItem[] = [];
   let existingCount = 0;
   let errorCount = 0;
-  
-  // Check KV for existing items in parallel
+
   const checks = await Promise.allSettled(
     items.map(async (item) => {
       const key = `item:${item.uploadFileName}`;
@@ -201,29 +192,21 @@ async function filterExistingItems(
         const exists = await env.INGEST_STATE.get(key);
         return { item, exists: exists !== null, key };
       } catch (error) {
-        console.warn(`[Deduplication] Error checking key: ${key}`, error);
+        log.warn('kv check error', { key, error: error instanceof Error ? error.message : String(error) });
         return { item, exists: false, key, error };
       }
     })
   );
-  
+
   for (const result of checks) {
     if (result.status === 'fulfilled') {
-      if (result.value.exists) {
-        existingCount++;
-        if (existingCount <= 5) { // Log first 5 to avoid spam
-          console.log(`[Deduplication] ⚠️ Already exists: ${result.value.key}`);
-        }
-      } else {
-        newItems.push(result.value.item);
-      }
+      result.value.exists ? existingCount++ : newItems.push(result.value.item);
     } else {
       errorCount++;
     }
   }
-  
-  console.log(`[Deduplication] Results: ${newItems.length} new, ${existingCount} existing, ${errorCount} errors`);
-  
+
+  log.debug('deduplication results', { new: newItems.length, existing: existingCount, errors: errorCount });
   return newItems;
 }
 
@@ -237,23 +220,23 @@ function createBatches<T>(items: T[], batchSize: number): T[][] {
 
 /**
  * Generate cron handler — fires on Wednesday and Saturday at 8am UTC.
- * Enqueues a generate message covering the last 7 days of R2 content.
  */
 export async function handleGenerateCron(env: Env): Promise<void> {
-  console.log('=== GENERATE CRON TRIGGERED ===');
   const today = new Date();
+  const generateId = `generate-${today.toISOString().slice(0, 10)}-${Date.now()}`;
+  const log = new Logger('stage-5-cron').withContext(generateId);
 
-  // Build list of date prefixes for the last 7 days
   const dates: string[] = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(today);
     d.setUTCDate(d.getUTCDate() - i);
-    dates.push(d.toISOString().slice(0, 10)); // YYYY-MM-DD
+    dates.push(d.toISOString().slice(0, 10));
   }
 
-  const generateId = `generate-${today.toISOString().slice(0, 10)}-${Date.now()}`;
-  console.log(`Generate ID: ${generateId}`);
-  console.log(`Date range: ${dates[dates.length - 1]} to ${dates[0]}`);
+  log.info('generate cron triggered', {
+    generate_id: generateId,
+    date_range: `${dates[dates.length - 1]} to ${dates[0]}`,
+  });
 
   await env.GENERATE_QUEUE.send({
     type: 'generate',
@@ -262,5 +245,5 @@ export async function handleGenerateCron(env: Env): Promise<void> {
     timestamp: Date.now(),
   });
 
-  console.log('=== GENERATE CRON: message enqueued ===');
+  log.info('generate message enqueued');
 }

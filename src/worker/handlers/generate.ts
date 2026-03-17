@@ -10,11 +10,12 @@
 import { Env } from '../index.js';
 import { generateNewsletter } from '../../generate/index.js';
 import { apiKeys } from '../../llm/api-keys.js';
+import { Logger, PipelineMetrics } from '../lib/logger.js';
 
 interface GenerateMessage {
   type: 'generate';
   generateId: string;
-  dates: string[]; // YYYY-MM-DD strings, newest first
+  dates: string[];
   timestamp: number;
 }
 
@@ -22,39 +23,36 @@ export async function handleGenerateQueue(
   batch: MessageBatch<GenerateMessage>,
   env: Env
 ): Promise<void> {
-  console.log(`[Stage 5] Processing generate batch with ${batch.messages.length} message(s)`);
+  const log = new Logger('stage-5');
+  log.info('generate batch received', { messages: batch.messages.length });
 
   for (const msg of batch.messages) {
     const message = msg.body;
-    console.log(`[Stage 5] Generate ID: ${message.generateId}`);
-    console.log(`[Stage 5] Date range: ${message.dates[message.dates.length - 1]} to ${message.dates[0]}`);
+    const genLog = log.withContext(message.generateId);
+    const metrics = new PipelineMetrics(env.INGEST_STATE, message.generateId, 'metrics:generate');
+
+    genLog.info('generate started', {
+      generate_id: message.generateId,
+      date_range: `${message.dates[message.dates.length - 1]} to ${message.dates[0]}`,
+    });
 
     try {
-      // Check if already generated (avoid duplicate runs)
       const dedupKey = `generated:${message.generateId}`;
       const alreadyDone = await env.INGEST_STATE.get(dedupKey);
       if (alreadyDone) {
-        console.log(`[Stage 5] Already generated: ${message.generateId} — skipping`);
+        genLog.info('already generated — skipping', { generate_id: message.generateId });
         continue;
       }
 
-      // Set global API keys so generate pipeline can call LLM APIs
-      // (Workers don't reliably support process.env across modules)
       apiKeys.anthropic = env.ANTHROPIC_API_KEY;
       apiKeys.mistral = env.MISTRAL_API_KEY;
       apiKeys.moonshot = env.MOONSHOT_API_KEY;
       apiKeys.ideogram = env.IDEOGRAM_API_KEY ?? '';
-      
-      console.log('[Stage 5] API keys set - Anthropic:', apiKeys.anthropic ? `${apiKeys.anthropic.substring(0,10)}...` : 'EMPTY');
-      console.log('[Stage 5] API keys set - Mistral:', apiKeys.mistral ? `${apiKeys.mistral.substring(0,10)}...` : 'EMPTY');
       if (env.Exa) process.env.EXA_API_KEY = env.Exa;
       if (env.TAVILY_API_KEY) process.env.TAVILY_API_KEY = env.TAVILY_API_KEY;
 
-      // Fetch previous newsletter from KV for LLM deduplication guidance
       const previousNewsletter = await env.INGEST_STATE.get('newsletter:previous') ?? undefined;
 
-      // Load hard-dedup set: R2 keys used in any of the last 4 newsletters
-      // Prevents the same article appearing in more than one edition
       const usedKeysList = await env.INGEST_STATE.list({ prefix: 'newsletter:used-keys:' });
       const usedKeySets = await Promise.all(
         usedKeysList.keys.map(k => env.INGEST_STATE.get(k.name))
@@ -64,39 +62,43 @@ export async function handleGenerateQueue(
           .filter((v): v is string => v !== null)
           .flatMap(v => { try { return JSON.parse(v) as string[]; } catch { return []; } })
       );
-      console.log(`[Stage 5] Hard-dedup: ${usedArticleKeys.size} article keys already used in previous editions`);
+      genLog.info('hard-dedup loaded', { previously_used_keys: usedArticleKeys.size });
 
-      // Run the full generation pipeline
-      console.log('[Stage 5] Starting newsletter generation...');
+      await metrics.set('started_at', Date.now());
+      await metrics.set('generate_id', message.generateId);
+
+      const timer = genLog.timer('newsletter generation');
       const { newsletter, usedIdentifiers } = await generateNewsletter(
         message.dates,
         env.CONTENT_BUCKET,
         previousNewsletter,
         usedArticleKeys
       );
+      timer.end();
 
-      console.log(`[Stage 5] Newsletter generated (${newsletter.length} chars)`);
-      console.log(`[Stage 5] Used ${usedIdentifiers.length} article identifiers in this edition`);
+      genLog.info('newsletter generated', {
+        length: newsletter.length,
+        articles_used: usedIdentifiers.length,
+      });
 
-      // Mark as generated
+      await metrics.set('newsletter_length', newsletter.length);
+      await metrics.set('articles_used', usedIdentifiers.length);
+
       await env.INGEST_STATE.put(dedupKey, JSON.stringify({
         timestamp: Date.now(),
         length: newsletter.length,
-      }), { expirationTtl: 60 * 60 * 24 * 14 }); // 14 days
+      }), { expirationTtl: 60 * 60 * 24 * 14 });
 
-      // Store as previous newsletter for next run's LLM dedup guidance
       await env.INGEST_STATE.put('newsletter:previous', newsletter, {
         expirationTtl: 60 * 60 * 24 * 14,
       });
 
-      // Hard-dedup: store the exact R2 identifiers used so future runs skip them
       await env.INGEST_STATE.put(
         `newsletter:used-keys:${message.generateId}`,
         JSON.stringify(usedIdentifiers),
-        { expirationTtl: 60 * 60 * 24 * 30 } // 30 days
+        { expirationTtl: 60 * 60 * 24 * 30 }
       );
 
-      // Enqueue for Ghost publishing
       await env.PUBLISH_QUEUE.send({
         type: 'publish',
         generateId: message.generateId,
@@ -105,10 +107,14 @@ export async function handleGenerateQueue(
         timestamp: Date.now(),
       });
 
-      console.log('[Stage 5] Enqueued for Ghost publishing');
+      genLog.info('enqueued for publishing');
 
     } catch (error) {
-      console.error(`[Stage 5] Generation failed for ${message.generateId}:`, error);
+      genLog.error('generation failed', {
+        generate_id: message.generateId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
 
       await env.INGEST_STATE.put(
         `error:generate:${message.generateId}`,
@@ -120,7 +126,7 @@ export async function handleGenerateQueue(
         { expirationTtl: 60 * 60 * 24 * 7 }
       );
 
-      throw error; // Let queue retry
+      throw error;
     }
   }
 }

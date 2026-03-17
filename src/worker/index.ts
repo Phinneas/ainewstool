@@ -11,6 +11,7 @@ import { handleEvaluateQueue } from './handlers/evaluate.js';
 import { handleUploadQueue } from './handlers/upload.js';
 import { handleGenerateQueue } from './handlers/generate.js';
 import { handlePublishQueue } from './handlers/publish.js';
+import { Logger } from './lib/logger.js';
 
 export interface Env {
   // Queues
@@ -47,17 +48,66 @@ export interface Env {
   SURREALDB_PASS?: string;
 }
 
+/** Read up to `limit` KV keys with a given prefix and return parsed JSON values. */
+async function listKvByPrefix<T>(
+  kv: KVNamespace,
+  prefix: string,
+  limit = 10
+): Promise<T[]> {
+  const listed = await kv.list({ prefix, limit });
+  const values = await Promise.all(
+    listed.keys.map(k => kv.get<T>(k.name, 'json'))
+  );
+  return values.filter((v): v is T => v !== null);
+}
+
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
-    
+    const log = new Logger('worker:fetch');
+
     // Health check endpoint
     if (req.method === 'GET' && url.pathname === '/health') {
       return new Response(JSON.stringify({ status: 'ok' }), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    
+
+    // Pipeline status endpoint — returns per-run metrics and recent errors
+    if (req.method === 'GET' && url.pathname === '/status') {
+      try {
+        const [ingestRuns, generateRuns, recentErrors] = await Promise.all([
+          listKvByPrefix(env.INGEST_STATE, 'metrics:run:', 10),
+          listKvByPrefix(env.INGEST_STATE, 'metrics:generate:', 5),
+          listKvByPrefix(env.INGEST_STATE, 'error:', 10),
+        ]);
+
+        // Most recent newsletter publish info
+        const ghostList = await env.INGEST_STATE.list({ prefix: 'published:ghost:', limit: 3 });
+        const recentPublished = await Promise.all(
+          ghostList.keys.map(k => env.INGEST_STATE.get(k.name, 'json'))
+        );
+
+        const status = {
+          generated_at: new Date().toISOString(),
+          ingest_runs: ingestRuns,
+          generate_runs: generateRuns,
+          recent_errors: recentErrors,
+          recent_published: recentPublished.filter(Boolean),
+        };
+
+        return new Response(JSON.stringify(status, null, 2), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (err) {
+        log.error('status endpoint error', { error: err instanceof Error ? err.message : String(err) });
+        return new Response(JSON.stringify({ error: 'Failed to load status' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     // Manual trigger endpoint
     if (req.method === 'POST' && url.pathname === '/trigger') {
       ctx.waitUntil(handleScheduled(env));
@@ -65,7 +115,7 @@ export default {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    
+
     // Manual generate endpoint
     if (req.method === 'POST' && url.pathname === '/generate') {
       ctx.waitUntil(handleGenerateCron(env));
@@ -73,7 +123,7 @@ export default {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    
+
     return new Response('Not found', { status: 404 });
   },
 
@@ -107,7 +157,7 @@ export default {
         await handlePublishQueue(batch, env);
         break;
       default:
-        console.error(`Unknown queue: ${batch.queue}`);
+        new Logger('worker:queue').error('unknown queue', { queue: batch.queue });
     }
   },
 };

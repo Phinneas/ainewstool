@@ -10,6 +10,7 @@
 import { Env } from '../index.js';
 import { generateHeaderImage } from '../lib/headerImage.js';
 import { uploadImageToGhost } from '../lib/ghostImageUpload.js';
+import { Logger, PipelineMetrics } from '../lib/logger.js';
 
 interface PublishMessage {
   type: 'publish';
@@ -181,9 +182,9 @@ async function publishToGhost(
   env: Env,
   featureImageUrl: string | null = null
 ): Promise<boolean> {
+  const log = new Logger('stage-6:ghost').withContext(message.generateId);
   const { title, preheader, html } = parsed;
 
-  // Dedup check — also accept legacy key (published:{id}) for previously published newsletters
   const dedupKey = `published:ghost:${message.generateId}`;
   const legacyKey = `published:${message.generateId}`;
   const [already, alreadyLegacy] = await Promise.all([
@@ -191,7 +192,7 @@ async function publishToGhost(
     env.INGEST_STATE.get(legacyKey),
   ]);
   if (already || alreadyLegacy) {
-    console.log(`[Stage 6] Ghost: already published ${message.generateId} — skipping`);
+    log.info('already published — skipping');
     return true;
   }
 
@@ -204,7 +205,7 @@ async function publishToGhost(
       sections: [[10, 0]],
     });
 
-    console.log(`[Stage 6] Ghost: body ${html.length} chars`);
+    log.debug('posting to ghost', { body_chars: html.length });
 
     const jwt = await createGhostJwt(env.GHOST_ADMIN_API_KEY);
     const url = `${env.GHOST_API_URL}/ghost/api/admin/posts/`;
@@ -237,8 +238,7 @@ async function publishToGhost(
     const data = (await response.json()) as { posts: Array<{ id: string; url: string }> };
     const post = data.posts[0];
 
-    console.log(`[Stage 6] Ghost: ✓ draft created — ID: ${post.id}`);
-    console.log(`[Stage 6] Ghost: ✓ URL: ${post.url}`);
+    log.info('ghost draft created', { post_id: post.id, post_url: post.url });
 
     await env.INGEST_STATE.put(dedupKey, JSON.stringify({
       postId: post.id,
@@ -249,7 +249,9 @@ async function publishToGhost(
 
     return true;
   } catch (error) {
-    console.error(`[Stage 6] Ghost publish failed for ${message.generateId}:`, error);
+    log.error('ghost publish failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     await env.INGEST_STATE.put(
       `error:ghost:${message.generateId}`,
       JSON.stringify({
@@ -273,9 +275,11 @@ async function publishToBeehiiv(
   env: Env,
   featureImageUrl: string | null = null
 ): Promise<boolean> {
+  const log = new Logger('stage-6:beehiiv').withContext(message.generateId);
+
   if (!env.BEEHIIV_API_KEY || !env.BEEHIIV_PUBLICATION_ID) {
-    console.warn('[Stage 6] Beehiiv: BEEHIIV_API_KEY or BEEHIIV_PUBLICATION_ID not set — skipping');
-    return true; // Not a failure — Beehiiv is optional
+    log.warn('beehiiv credentials not set — skipping');
+    return true;
   }
 
   const { title, preheader, html } = parsed;
@@ -283,12 +287,12 @@ async function publishToBeehiiv(
   const dedupKey = `published:beehiiv:${message.generateId}`;
   const already = await env.INGEST_STATE.get(dedupKey);
   if (already) {
-    console.log(`[Stage 6] Beehiiv: already published ${message.generateId} — skipping`);
+    log.info('already published — skipping');
     return true;
   }
 
   try {
-    console.log(`[Stage 6] Beehiiv: body ${html.length} chars`);
+    log.debug('posting to beehiiv', { body_chars: html.length });
 
     const url = `https://api.beehiiv.com/v2/publications/${env.BEEHIIV_PUBLICATION_ID}/posts`;
     const response = await fetch(url, {
@@ -316,7 +320,7 @@ async function publishToBeehiiv(
     const data = (await response.json()) as { data: { id: string; web_url?: string } };
     const post = data.data;
 
-    console.log(`[Stage 6] Beehiiv: ✓ draft created — ID: ${post.id}`);
+    log.info('beehiiv draft created', { post_id: post.id, web_url: post.web_url ?? null });
 
     await env.INGEST_STATE.put(dedupKey, JSON.stringify({
       postId: post.id,
@@ -327,7 +331,9 @@ async function publishToBeehiiv(
 
     return true;
   } catch (error) {
-    console.error(`[Stage 6] Beehiiv publish failed for ${message.generateId}:`, error);
+    log.error('beehiiv publish failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     await env.INGEST_STATE.put(
       `error:beehiiv:${message.generateId}`,
       JSON.stringify({
@@ -344,11 +350,15 @@ export async function handlePublishQueue(
   batch: MessageBatch<PublishMessage>,
   env: Env
 ): Promise<void> {
-  console.log(`[Stage 6] Processing publish batch with ${batch.messages.length} message(s)`);
+  const log = new Logger('stage-6');
+  log.info('publish batch received', { messages: batch.messages.length });
 
   for (const msg of batch.messages) {
     const message = msg.body;
-    console.log(`[Stage 6] Publishing for generate ID: ${message.generateId}`);
+    const pubLog = log.withContext(message.generateId);
+    const metrics = new PipelineMetrics(env.INGEST_STATE, message.generateId, 'metrics:generate');
+
+    pubLog.info('publishing newsletter', { generate_id: message.generateId });
 
     const parsed = parseNewsletter(message);
 
@@ -368,11 +378,13 @@ export async function handlePublishQueue(
         const filename = `header-${message.generateId}.png`;
         featureImageUrl = await uploadImageToGhost(pngBytes, filename, jwt, env.GHOST_API_URL);
         if (featureImageUrl) {
-          console.log(`[Stage 6] Header image uploaded: ${featureImageUrl}`);
+          pubLog.info('header image uploaded', { url: featureImageUrl });
         }
       }
     } catch (imgError) {
-      console.warn('[Stage 6] Header image generation/upload failed — continuing without it:', imgError instanceof Error ? imgError.message : String(imgError));
+      pubLog.warn('header image failed — continuing without it', {
+        error: imgError instanceof Error ? imgError.message : String(imgError),
+      });
     }
 
     const [ghostOk, beehiivOk] = await Promise.all([
@@ -380,13 +392,24 @@ export async function handlePublishQueue(
       publishToBeehiiv(message, parsed, env, featureImageUrl),
     ]);
 
+    await metrics.set('published_at', Date.now());
+    if (ghostOk) await metrics.set('ghost_ok', true);
+    if (beehiivOk) await metrics.set('beehiiv_ok', true);
+
     // Ghost is required — always retry if it failed, regardless of Beehiiv
     if (!ghostOk) {
+      pubLog.error('ghost publish failed — will retry', { generate_id: message.generateId });
       throw new Error(`Ghost publish failed for ${message.generateId} — retrying`);
     }
 
     if (!beehiivOk) {
-      console.error(`[Stage 6] Beehiiv failed for ${message.generateId} — Ghost succeeded, continuing`);
+      pubLog.warn('beehiiv failed — ghost succeeded, continuing', { generate_id: message.generateId });
     }
+
+    pubLog.info('publish complete', {
+      generate_id: message.generateId,
+      ghost: ghostOk,
+      beehiiv: beehiivOk,
+    });
   }
 }
