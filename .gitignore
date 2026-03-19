@@ -21,3 +21,6 @@ coverage/
 
 # Logs
 *.log
+
+# Wrangler temp/build files
+.wrangler/
