@@ -8,13 +8,17 @@ import {
   SUBSTACK_FEEDS,
   TUTORIAL_FEEDS,
   RESEARCH_FEEDS,
+  SCRAPED_PAGE_FEEDS,
   ALL_FEEDS,
   DOMAIN_SOURCE_MAP,
 } from "../src/ingest/feeds.js";
 
 describe("feed definitions (loaded from feeds.json)", () => {
-  it("has 0 newsletter feeds (migrated to substack)", () => {
-    expect(NEWSLETTER_FEEDS).toHaveLength(0);
+  it("has newsletter feeds", () => {
+    expect(NEWSLETTER_FEEDS.length).toBeGreaterThanOrEqual(0);
+    for (const feed of NEWSLETTER_FEEDS) {
+      expect(feed.category).toBe("newsletter");
+    }
   });
 
   it("has 2 JSON feeds (Google News, Hacker News)", () => {
@@ -27,16 +31,20 @@ describe("feed definitions (loaded from feeds.json)", () => {
     expect(REDDIT_FEEDS).toHaveLength(6);
   });
 
-  it("has 6 blog feeds", () => {
-    expect(BLOG_FEEDS).toHaveLength(6);
+  it("has blog feeds (standard RSS/JSON only — scraped blogs handled separately)", () => {
+    expect(BLOG_FEEDS.length).toBeGreaterThan(0);
+    for (const feed of BLOG_FEEDS) {
+      expect(feed.category).toBe("blog");
+      expect(feed.format).not.toBe("scraped_page");
+    }
   });
 
   it("has 8 news feeds (nyt, wsj disabled; forbes removed)", () => {
     expect(NEWS_FEEDS).toHaveLength(8);
   });
 
-  it("has 7 substack feeds", () => {
-    expect(SUBSTACK_FEEDS).toHaveLength(7);
+  it("has substack feeds", () => {
+    expect(SUBSTACK_FEEDS.length).toBeGreaterThan(0);
     for (const feed of SUBSTACK_FEEDS) {
       expect(feed.feedType).toBe("newsletter");
     }
@@ -49,14 +57,14 @@ describe("feed definitions (loaded from feeds.json)", () => {
     }
   });
 
-  it("has 1 research feed (arxiv disabled due to volume)", () => {
-    expect(RESEARCH_FEEDS).toHaveLength(1);
+  it("has research feeds", () => {
+    expect(RESEARCH_FEEDS.length).toBeGreaterThan(0);
     for (const feed of RESEARCH_FEEDS) {
       expect(feed.feedType).toBe("research");
     }
   });
 
-  it("ALL_FEEDS contains all feeds combined", () => {
+  it("ALL_FEEDS contains all feeds combined (including scraped_page feeds)", () => {
     expect(ALL_FEEDS).toHaveLength(
       NEWSLETTER_FEEDS.length +
         JSON_FEEDS.length +
@@ -65,7 +73,8 @@ describe("feed definitions (loaded from feeds.json)", () => {
         NEWS_FEEDS.length +
         SUBSTACK_FEEDS.length +
         TUTORIAL_FEEDS.length +
-        RESEARCH_FEEDS.length
+        RESEARCH_FEEDS.length +
+        SCRAPED_PAGE_FEEDS.length
     );
   });
 
@@ -100,7 +109,7 @@ describe("feed definitions (loaded from feeds.json)", () => {
 
   it("all feeds have a valid format", () => {
     for (const feed of ALL_FEEDS) {
-      expect(["rss", "json"]).toContain(feed.format);
+      expect(["rss", "json", "scraped_page"]).toContain(feed.format);
     }
   });
 

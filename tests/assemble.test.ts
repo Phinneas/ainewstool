@@ -16,7 +16,7 @@ describe("assembleNewsletter", () => {
     expect(result).toContain("Good morning, {{first_name | AI enthusiast}}");
     expect(result).toContain("# Story One");
     expect(result).toContain("# Story Two");
-    expect(result).toContain("## The Quick Scribbles");
+    expect(result).toContain("## Quick Scribbles");
     expect(result).toContain("**NVIDIA** [released]");
   });
 
@@ -29,11 +29,9 @@ describe("assembleNewsletter", () => {
       shortlist: "Shortlist",
     });
 
-    // Story sections are joined with ---
-    const sectionBlock = result.split("## The Quick Scribbles")[0];
-    const separators = sectionBlock.match(/---/g);
-    // Should have: after preheader, after intro, between sections (2), before shortlist
-    expect(separators!.length).toBeGreaterThanOrEqual(4);
+    // Adjacent story sections are separated by ---
+    expect(result).toContain("Section A\n\n---\nSection B");
+    expect(result).toContain("Section B\n\n---\nSection C");
   });
 
   it("uses the subject line as the top-level heading", () => {
@@ -59,7 +57,7 @@ describe("assembleNewsletter", () => {
     });
 
     expect(result).toContain("The only story");
-    expect(result).toContain("## The Quick Scribbles");
+    expect(result).toContain("## Quick Scribbles");
   });
 
   it("handles empty shortlist gracefully", () => {
@@ -71,6 +69,6 @@ describe("assembleNewsletter", () => {
       shortlist: "",
     });
 
-    expect(result).toContain("## The Quick Scribbles");
+    expect(result).toContain("## Quick Scribbles");
   });
 });
