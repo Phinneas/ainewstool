@@ -4,7 +4,9 @@
  */
 
 import { ALL_FEEDS, type FeedDefinition } from './feeds-bundler.js';
-import { log } from './logger.js';
+import { Logger } from './logger.js';
+
+const log = new Logger('fetcher');
 
 export interface NormalizedFeedItem {
   url: string;
