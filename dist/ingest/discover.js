@@ -1,6 +1,5 @@
 import { log } from "../logger.js";
 import { generateSearchQueries } from "./generate-queries.js";
-import { firecrawlSearch } from "./search.js";
 import { exaSearch } from "./exa-search.js";
 import { normalizeSearchResult } from "./normalize.js";
 import { mapConcurrent } from "./concurrency.js";
@@ -10,7 +9,7 @@ import * as s3 from "../storage/s3.js";
 /**
  * Run the AI-powered discovery pipeline:
  * 1. Generate search queries via Mistral
- * 2. Search the web via Firecrawl for each query
+ * 2. Search the web via Exa for each query
  * 3. Deduplicate results (across queries + against S3)
  * 4. Evaluate relevance + extract sources
  * 5. Upload to S3
@@ -22,19 +21,16 @@ export async function runDiscovery(existingUrls) {
     const timer = log.timer("discovery-total");
     // Step 1: Generate queries
     const queries = await generateSearchQueries();
-    // Step 2: Search for each query — run Firecrawl and Exa in parallel per query
-    log.info(`Searching with ${queries.length} queries (Firecrawl + Exa in parallel)...`);
+    // Step 2: Search for each query via Exa (semantic/neural search)
+    log.info(`Searching with ${queries.length} queries (Exa)...`);
     const allResults = [];
     for (const query of queries) {
-        const [firecrawlResults, exaResults] = await Promise.all([
-            firecrawlSearch(query, 5),
-            exaSearch(query, 5),
-        ]);
-        for (const result of [...firecrawlResults, ...exaResults]) {
+        const exaResults = await exaSearch(query, 5);
+        for (const result of exaResults) {
             allResults.push({ query, result });
         }
     }
-    log.info(`Got ${allResults.length} total search results across all queries (Firecrawl + Exa)`);
+    log.info(`Got ${allResults.length} total search results across all queries`);
     // Step 3: Deduplicate by URL
     const seenUrls = new Set(existingUrls);
     const uniqueResults = [];
