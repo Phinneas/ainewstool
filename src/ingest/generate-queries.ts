@@ -32,7 +32,7 @@ Respond with valid JSON in this exact format:
   "queries": ["query 1", "query 2", "query 3"]
 }`;
 
-  const response = await chatWithMistral({ prompt, maxTokens: 1024 });
+  const response = await chatWithMistral({ prompt, maxTokens: 1024, model: "mistral-small" });
 
   try {
     const jsonMatch = response.match(/\{[\s\S]*\}/);

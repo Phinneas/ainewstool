@@ -13,13 +13,13 @@ function getClient(): Mistral {
 }
 
 export const mistralClient: LLMClient = {
-  async chat({ system, prompt, maxTokens = 4096 }) {
+  async chat({ system, prompt, maxTokens = 4096, model = "mistral-medium" }) {
     const messages: Array<{ role: "system" | "user"; content: string }> = [];
     if (system) messages.push({ role: "system", content: system });
     messages.push({ role: "user", content: prompt });
 
     const response = await getClient().chat.complete({
-      model: "mistral-large-latest",
+      model: model,
       messages,
       maxTokens,
     });
