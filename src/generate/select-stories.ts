@@ -33,13 +33,37 @@ Select the top 4 stories from the provided content to feature in our AI newslett
 
 Each content item includes a \`feedType\` field indicating its type: "article" (news), "tutorial" (how-to/guide), "research" (papers/studies), or "newsletter" (analysis).
 
-## Selection Criteria
+## Selection Criteria (STRICTLY ENFORCED)
 
-1. **Impact**: Stories about major announcements, breakthroughs, or significant developments in AI
-2. **Relevance**: Stories directly related to AI, machine learning, Model Context Protocol (MCP), or AI-adjacent technology
-3. **Interest**: Stories that would genuinely interest and excite our tech-savvy audience
-4. **Diversity**: Try to cover different aspects of AI (products, research, business, policy, MCP tools). When high-quality tutorial or research content is available, try to include at least 1 tutorial or research piece among the 4 selections.
-5. **Recency**: Prefer newer developments over older news
+1. **Company Diversity Limit**: Maximum 1 story from the same company per newsletter (e.g., only 1 OpenAI story, 1 Google story, etc.). This prevents overemphasis on big tech.
+
+2. **Must Include MCP/Agent Tools or Technical Research**: At least 1 story MUST be about:
+   - Model Context Protocol (MCP) servers, tools, or integrations
+   - Agent frameworks (LangChain, AutoGen, CrewAI, etc.)
+   - Agent skill libraries or capabilities
+   - Technical research explaining how AI models work
+   - ML training techniques, architectures, or infrastructure research
+
+3. **Must Include Developer Tools or Infrastructure**: At least 1 story MUST be about:
+   - New developer tools or SDKs
+   - AI frameworks or libraries
+   - Deployment platforms or infrastructure
+   - Implementation guides or technical tooling
+
+4. **Business Impact Focus**: At least 1 story MUST include business implications, not just technical announcements. Look for:
+   - Market impact analysis
+   - Competitive advantage insights
+   - ROI or productivity metrics
+   - Enterprise adoption case studies
+   - Costs, pricing, or business model changes
+
+5. **Prefer "How It Works" Over Announcements**: When choosing between similar stories, prioritize ones that explain technical mechanisms, architecture, or implementation over company press releases.
+
+6. **Impact**: Stories about major announcements, breakthroughs, or significant developments in AI
+7. **Relevance**: Stories directly related to AI, machine learning, or AI-adjacent technology
+8. **Interest**: Stories that would genuinely interest and excite our tech-savvy audience
+9. **Diversity**: Cover different aspects of AI (products, research, business, policy, tools)
+10. **Recency**: Prefer newer developments over older news
 
 ## Content to Evaluate
 

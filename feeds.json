@@ -542,6 +542,130 @@
       "category": "research",
       "enabled": true,
       "articlePathPrefix": "/news/"
+    },
+    {
+      "name": "github_ai_trending",
+      "sourceName": "github-ai-trending",
+      "feedType": "developer-tool",
+      "feedUrl": "https://github.com/trending/ai?page=1",
+      "format": "scraped_page",
+      "category": "github",
+      "enabled": true,
+      "articlePathPrefix": "/"
+    },
+    {
+      "name": "github_langchain_trending",
+      "sourceName": "github-langchain-trending",
+      "feedType": "developer-tool",
+      "feedUrl": "https://github.com/topics/langchain?page=1",
+      "format": "scraped_page",
+      "category": "github",
+      "enabled": true,
+      "articlePathPrefix": "/"
+    },
+    {
+      "name": "github_llamaindex_trending",
+      "sourceName": "github-llamaindex-trending",
+      "feedType": "developer-tool",
+      "feedUrl": "https://github.com/topics/llama-index?page=1",
+      "format": "scraped_page",
+      "category": "github",
+      "enabled": true,
+      "articlePathPrefix": "/"
+    },
+    {
+      "name": "langchain_blog",
+      "sourceName": "langchain-blog",
+      "feedType": "agent-framework",
+      "feedUrl": "https://blog.langchain.dev/feed/",
+      "format": "rss",
+      "category": "agent-frameworks",
+      "enabled": true
+    },
+    {
+      "name": "autogen_blog",
+      "sourceName": "autogen-blog",
+      "feedType": "agent-framework",
+      "feedUrl": "https://microsoft.github.io/autogen/blog/feed.xml",
+      "format": "rss",
+      "category": "agent-frameworks",
+      "enabled": true
+    },
+    {
+      "name": "crewai_blog",
+      "sourceName": "crewai-blog",
+      "feedType": "agent-framework",
+      "feedUrl": "https://docs.crewai.com/feed.xml",
+      "format": "rss",
+      "category": "agent-frameworks",
+      "enabled": true
+    },
+    {
+      "name": "distill_pubs",
+      "sourceName": "distill-pubs",
+      "feedType": "research-explainer",
+      "feedUrl": "https://distill.pub/rss.xml",
+      "format": "rss",
+      "category": "research-explainers",
+      "enabled": true
+    },
+    {
+      "name": "research_three_body_ml",
+      "sourceName": "three-body-ml",
+      "feedType": "research-explainer",
+      "feedUrl": "https://www.youtube.com/@NYU%20Deep%20Learning/videos",
+      "format": "scraped_page",
+      "category": "research-explainers",
+      "enabled": false,
+      "disabledReason": "YouTube videos need specialized scraper - currently disabled"
+    },
+    {
+      "name": "research_gradient_sinking",
+      "sourceName": "gradient-sinking",
+      "feedType": "technical-explainer",
+      "feedUrl": "https://www.youtube.com/@3Blue1Brown/videos",
+      "format": "scraped_page",
+      "category": "research-explainers",
+      "enabled": false,
+      "disabledReason": "YouTube videos need specialized scraper - currently disabled"
+    },
+    {
+      "name": "research_fastai_courses",
+      "sourceName": "fastai-courses",
+      "feedType": "technical-explainer",
+      "feedUrl": "https://course.fast.ai/feed.xml",
+      "format": "rss",
+      "category": "how-it-works",
+      "enabled": true
+    },
+    {
+      "name": "mcp_servers_registry",
+      "sourceName": "mcp-servers",
+      "feedType": "mcp-tool",
+      "feedUrl": "https://github.com/modelcontextprotocol/servers",
+      "format": "scraped_page",
+      "category": "mcp",
+      "enabled": true,
+      "articlePathPrefix": "/blob/main/src/servers/"
+    },
+    {
+      "name": "mcp_modelcontextprotocol",
+      "sourceName": "mcp-official",
+      "feedType": "mcp-tool",
+      "feedUrl": "https://modelcontextprotocol.io/feed.xml",
+      "format": "rss",
+      "category": "mcp",
+      "enabled": false,
+      "disabledReason": "No RSS feed available"
+    },
+    {
+      "name": "mcp_anthropic_docs",
+      "sourceName": "mcp-anthropic-docs",
+      "feedType": "mcp-tool",
+      "feedUrl": "https://docs.anthropic.com/en/docs/build-with-claude/mcp/feed",
+      "format": "rss",
+      "category": "mcp",
+      "enabled": true
     }
   ],
   "domainSourceMap": {
@@ -592,6 +716,14 @@
     "paperswithcode.com": "papers-with-code",
     "tldr.tech": "tldr-ai",
     "aisnakeoil.substack.com": "ai-snake-oil",
-    "karpathy.bearblog.dev": "karpathy"
+    "karpathy.bearblog.dev": "karpathy",
+    "github.com": "github",
+    "langchain.dev": "langchain",
+    "microsoft.github.io": "autogen",
+    "docs.crewai.com": "crewai",
+    "distill.pub": "distill-pubs",
+    "course.fast.ai": "fastai",
+    "modelcontextprotocol.io": "mcp-official",
+    "docs.anthropic.com": "mcp-anthropic-docs"
   }
 }

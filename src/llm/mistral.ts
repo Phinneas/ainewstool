@@ -32,6 +32,7 @@ export async function chatWithMistral(params: {
   system?: string;
   prompt: string;
   maxTokens?: number;
+  model?: string;
 }): Promise<string> {
   return mistralClient.chat(params);
 }

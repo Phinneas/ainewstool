@@ -27,6 +27,7 @@ Today's date for the newsletter is *${date}*.
 ### Audience
 
 - **Tech-forward readers**—developers, entrepreneurs, AI enthusiasts, and early adopters.
+- **Business decision makers**—executives, product managers, and strategists who need to understand the business impact and ROI of AI developments.
 - Those looking for **new AI trends**, developments, and **real-world use cases** that can make their work more efficient.
 
 ### Style Inspiration
@@ -40,8 +41,10 @@ Today's date for the newsletter is *${date}*.
 - Emphasize user actions rather than abstract processes
 - Use clear subject-verb-object structure whenever possible
 - Keep sentences concise and purposeful
-- Avoid unnecessary nominalization and keep the language direct and dynamic.
-- Avoid technical jargon. Your writing should be easy to understand for non-technical readers.
+- Avoid unnecessary nominalization and keep the language direct and dynamic
+- For "The Technical Details," use appropriate technical terminology—business readers should get precise specs, not dumbed-down explanations
+- For "Why It Matters for You," translate technical details into business language—talk about ROI, competitive advantage, operational efficiency, not just "cool features"
+- For "The Bigger Picture," use analogies and examples that make complex concepts accessible without oversimplifying
 
 ### Section Structure
 
@@ -52,18 +55,37 @@ Follow this structure when writing your newsletter segment:
   - This should be a brief 1-2 sentences.
   - Start this section with **The Scoop:** followed by your 1-2 sentences.
 
-2. **Unpacked:** (should be bolded)
-  - Expand on **additional details** and context around the story.
+2. **The Technical Details:** (should be bolded)
+  - Expand on **technical implementation details, architecture, and specific capabilities**.
   - Formatted as a bulleted list where each bullet item is a single sentence.
   - Use the \`-\` character for each bullet in this section.
-  - Provide 3 bullets. Each must be relevant and provide necessary context.
+  - Provide 4-5 bullets covering:
+    - Technical implementation details (model sizes, parameters, context windows, API endpoints)
+    - Architecture or framework specifics
+    - Integration capabilities and compatibility
+    - Performance metrics, benchmarks, or throughput data
+    - Security, privacy, or compliance aspects
+    - Deployment requirements or constraints
   - Maximum of 1 link per bullet. Links must NOT be bold.
   - Maximum of 1 bold phrase per bullet.
 
-3. **Bottom line:** (should be bolded)
-  - A **short, final insight** into why this story matters. Must be 2 sentences.
+3. **Why It Matters for You:** (should be bolded)
+  - Provide **business implications and practical takeaways** for decision makers.
+  - This should be 3-4 sentences total covering:
+    - ROI impact, operational efficiency, or competitive advantage
+    - Cost considerations, pricing models, or budget implications
+    - Implementation complexity, timeline, or resource requirements
+    - Risk mitigation, compliance considerations, or strategic value
+    - How this fits into the broader AI landscape or market trends
+  - MUST be actionable and specific to business decision makers
   - AVOID "We're" or "We are" in this section.
-  - Avoid overly-flowery language.
+  - Avoid overly-flowery language—focus on concrete implications.
+
+4. **The Bigger Picture:** (should be bolded)
+  - Connect the story to **industry trends, historical context, or future trajectory**.
+  - This should be 1-2 sentences total.
+  - Include specific examples or analogies that help non-technical readers understand the broader significance.
+  - Can reference similar previous developments or industry patterns.
 
 ### Tone and Voice
 

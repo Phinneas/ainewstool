@@ -4,32 +4,57 @@ export async function generateSearchQueries() {
     const today = new Date().toISOString().substring(0, 10);
     const prompt = `You are an AI news and tutorial researcher. Today's date is ${today}.
 
-Generate 8-12 search queries to find the most important AI news stories AND the best AI tutorials/guides from today and the past few days.
+Generate targeted search queries across specific categories to find the most important AI developments from today and the past few days. We need queries that surface technical depth, new tools, MCP/agent developments, and research insights—not just big company announcements.
 
-## News queries (generate 5-7):
-- New AI model releases, benchmarks, and capabilities
-- AI startup funding rounds and acquisitions
-- AI policy, regulation, and government actions
-- Open-source AI projects and tools
-- AI research breakthroughs and papers
-- Major tech company AI announcements (Google, OpenAI, Anthropic, Meta, Microsoft, etc.)
-- AI applications in various industries
-- Model Context Protocol (MCP) tools and integrations
+## Category 1: Model Context Protocol (MCP) & Agent Tools (generate 4-5 queries)
+Focus: New MCP servers, agent skill libraries, agent frameworks, tool integrations
+Example topics:
+- New Model Context Protocol MCP server released this week
+- Agent skill library new tools released
+- MCP tool integration announcements
+- AI agent framework updates (LangChain, AutoGen, CrewAI, etc.)
+- New agent capabilities and tools launched
 
-## Tutorial/guide queries (generate 3-5):
-- Practical tutorials on fine-tuning, training, or deploying AI models
-- Step-by-step guides for building AI agents or applications
-- How-to content for popular AI frameworks and tools (LangChain, LlamaIndex, HuggingFace, etc.)
-- AI coding tutorials and developer guides
-- Beginner-friendly AI/ML explainers and walkthroughs
+## Category 2: Research & "How AI Works" (generate 4-5 queries)
+Focus: Technical research, model architectures, training techniques, ML infrastructure
+Example topics:
+- AI research breakthrough how models work this week
+- New ML training technique paper published
+- LLM architecture innovation research
+- AI infrastructure scaling research paper
+- Model interpretability research new findings
+- Attention mechanism or transformer architecture research
 
-Each query should be specific enough to return relevant results but broad enough to capture multiple stories. Use natural search language, not boolean operators.
+## Category 3: Developer Tools & Infrastructure (generate 3-4 queries)
+Focus: New developer tools, frameworks, deployment platforms, SDK releases
+Example topics:
+- New AI developer tool released (LangChain, LlamaIndex, etc.)
+- ML infrastructure tool launch announcement
+- AI framework new version released
+- Developer SDK for AI models launched
+- AI deployment tooling new release
+
+## Category 4: Enterprise & Business Impact (generate 2-3 queries)
+Focus: Business implications, market trends, productivity impact, funding (not big tech coverage)
+Example topics:
+- AI startup Series A funding round announced
+- Enterprise AI adoption case study
+- AI vendor contract deals announced
+- Business intelligence AI tool released
+- AI productivity impact business metrics
+
+## Category 5: Big Tech (LIMIT - generate only 1-2 queries)
+Focus: Only the most major announcements from OpenAI, Anthropic, Google, Meta—avoid routine updates
+Example topics:
+- OpenAI Anthropic Google AI major announcements today
 
 Respond with valid JSON in this exact format:
 {
   "queries": ["query 1", "query 2", "query 3"]
-}`;
-    const response = await chatWithMistral({ prompt, maxTokens: 1024 });
+}
+
+Total queries should be 14-20, distributed as specified above.`;
+    const response = await chatWithMistral({ prompt, maxTokens: 1024, model: "mistral-small" });
     try {
         const jsonMatch = response.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
@@ -52,15 +77,28 @@ Respond with valid JSON in this exact format:
 }
 function getDefaultQueries() {
     return [
-        "latest AI model release announcement today",
-        "AI startup funding round 2025",
-        "new open source AI tool released",
-        "AI regulation policy news",
-        "artificial intelligence research breakthrough",
-        "OpenAI Google Anthropic Meta AI news",
-        "Model Context Protocol MCP tools and integrations",
-        "AI tutorial how to build agents guide",
-        "fine-tuning LLM tutorial step by step",
-        "AI coding assistant tutorial beginner guide",
+        // MCP & Agent Tools
+        "new Model Context Protocol MCP server released this week",
+        "agent skill library new tools released",
+        "MCP tool integration announcement",
+        "AI agent framework updates LangChain AutoGen CrewAI",
+        "new agent capabilities and tools launched",
+        // Research & How AI Works
+        "AI research breakthrough how models work this week",
+        "new ML training technique paper published",
+        "LLM architecture innovation research",
+        "AI infrastructure scaling research paper",
+        "model interpretability research new findings",
+        // Developer Tools & Infrastructure
+        "new AI developer tool released LangChain LlamaIndex",
+        "ML infrastructure tool launch announcement",
+        "AI framework new version released",
+        "developer SDK for AI models launched",
+        // Enterprise & Business Impact
+        "AI startup Series A funding round announced",
+        "enterprise AI adoption case study",
+        "AI productivity impact business metrics",
+        // Big Tech (limited)
+        "OpenAI Anthropic Google AI major announcements today",
     ];
 }

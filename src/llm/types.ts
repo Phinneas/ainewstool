@@ -3,5 +3,6 @@ export interface LLMClient {
     system?: string;
     prompt: string;
     maxTokens?: number;
+    model?: string;
   }): Promise<string>;
 }
