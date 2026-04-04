@@ -1,152 +1,317 @@
 # Requirements Document
 
-## Introduction
+Perfect use case for a Kiro spec - you already have the format in your `.kiro/specs/` folder. The trick to forcing actual implementation rather than hand-waving is: **atomic tasks with exact file paths, function signatures pre-defined, and acceptance criteria that require running code**.
 
-Implement a comprehensive icon/logo system for MCP servers in the directory to improve visual distinction, brand recognition, and user experience. Replace the current first-letter gradient avatars with actual project logos/icons while maintaining a robust fallback system for servers without available logos.
+Here are the three files to create as `.kiro/specs/newsletter-discovery-upgrade/`:
 
-## Glossary
+---
 
-- **MCP Directory**: The main application displaying MCP servers with their metadata
-- **Logo System**: The complete infrastructure for fetching, storing, caching, and displaying server logos
-- **Cloudflare KV**: Key-value storage used for caching fetched logos with configurable TTL
-- **LCP**: Largest Contentful Paint, a Core Web Vital measuring loading performance
-- **Favicon API**: External service that extracts favicons from website URLs
-- **Open Graph (OG) Image**: Standardized image metadata embedded in web pages for social sharing
+### `requirements.md`
+
+```markdown
+# Newsletter Discovery Upgrade
+
+## Background
+The ainewsletter pipeline uses generic mixed queries in `generate-queries.ts` that 
+produce big-tech-dominated results. Research journal content is ingested via RSS 
+but never surfaces in the final output. ~35% of Cloudflare Worker cron runs are 
+failing. Small indie AI projects are invisible in the current output.
 
 ## Requirements
 
-### Requirement 1: Logo Display
+### REQ-1: Category-Based Query Generation
+**User story:** As a newsletter editor, I want search queries to be category-specific 
+so that each section of the newsletter (research, startup, enterprise, policy) pulls 
+from targeted queries rather than a generic mixed batch.
 
-**User Story:** As a user, I want to see actual project logos instead of generic avatars, so that I can quickly identify and trust servers.
+**Acceptance criteria:**
+- AC-1.1: `generate-queries.ts` exports a `generateCategoryQueries()` function that 
+  returns queries grouped by category
+- AC-1.2: Categories are: `research | startup | enterprise | policy | consumer`
+- AC-1.3: Each category specifies its preferred search engine (`exa` | `tavily`)
+- AC-1.4: Startup/indie queries explicitly exclude known big-tech brand names
+- AC-1.5: Research queries use academic-oriented language targeting papers and 
+  preprints
 
-#### Acceptance Criteria
+### REQ-2: Direct arXiv Integration
+**User story:** As a newsletter editor, I want recent AI research papers from arXiv 
+to appear in every issue under a "From the Lab" section, without depending on rss.app 
+proxies.
 
-1. WHEN a server has a logo available, THE Logo System SHALL display it in place of the first-letter gradient avatar
-2. THE Logo Display Component SHALL render logos as 48x48px circular images
-3. WHERE a logo fails to load, THE Logo System SHALL display the fallback avatar
-4. WHILE a logo is loading, THE Logo System SHALL display a loading indicator or transparent placeholder
-5. IF a logo fails to load after all retry attempts, THEN THE Logo System SHALL display the fallback avatar
+**Acceptance criteria:**
+- AC-2.1: `feeds.ts` exports a `fetchArxivPapers(maxResults: number)` function
+- AC-2.2: Papers are fetched directly from the arXiv Atom API (no rss.app, no SDK)
+- AC-2.3: Returns structured objects with: title, abstract, authors, url, publishedDate
+- AC-2.4: Only papers from `cs.AI`, `cs.LG`, `cs.CL` categories are returned
+- AC-2.5: Papers from the last 7 days only
 
-### Requirement 2: Multi-Source Logo Fetching
+### REQ-3: Research-Aware Content Scoring
+**User story:** As a newsletter editor, I want research papers to be scored on 
+"reader accessibility" rather than "newsworthiness" so they are not systematically 
+deprioritized by the evaluation step.
 
-**User Story:** As a developer, I want the system to try multiple sources for logos, so that we maximize coverage of servers with actual logos.
+**Acceptance criteria:**
+- AC-3.1: `evaluate.ts` detects content type (`news` | `research` | `project`)
+- AC-3.2: Research items use a separate LLM prompt focused on technical interest 
+  and explainability
+- AC-3.3: The final output preserves at least 1 research item per run regardless 
+  of score
 
-#### Acceptance Criteria
+### REQ-4: HackerNews Show HN Discovery
+**User story:** As a newsletter editor, I want Show HN posts to be included in 
+discovery so that indie and small-team AI projects surface before they hit mainstream 
+tech press.
 
-1. WHEN fetching a server logo, THE Logo Fetcher SHALL first attempt to use the GitHub avatar URL
-2. WHEN the GitHub avatar is unavailable or missing, THE Logo Fetcher SHALL attempt to fetch the favicon via Favicon API
-3. WHEN the favicon is unavailable or missing, THE Logo Fetcher SHALL attempt to fetch the Open Graph image
-4. WHEN the Open Graph image is unavailable or missing, THE Logo Fetcher SHALL attempt to fetch custom repository logos
-5. IF all sources fail, THEN THE Logo Fetcher SHALL return null and trigger fallback avatar generation
+**Acceptance criteria:**
+- AC-4.1: `search.ts` exports a `fetchShowHN(query: string, maxResults: number)` 
+  function
+- AC-4.2: Uses the free HN Algolia API at `hn.algolia.com` - no API key, no SDK
+- AC-4.3: Filters to `show_hn` tag only, last 24 hours, minimum 3 points
+- AC-4.4: Results are normalized to the same shape as Exa/Tavily results
 
-### Requirement 3: Caching System
+### REQ-5: RSS Feed Health Check
+**User story:** As a developer, I want to know which rss.app feed IDs are returning 
+errors so I can identify and replace broken research/niche feeds.
 
-**User Story:** As a system operator, I want logos to be cached efficiently, so that we minimize external API calls and improve load performance.
+**Acceptance criteria:**
+- AC-5.1: `check-feeds.ts` script (runnable via `npx ts-node`) tests each feed URL 
+  in `feeds.json`
+- AC-5.2: Reports: feed URL, HTTP status, item count, most recent item date
+- AC-5.3: Flags feeds with 0 items or last item older than 14 days as STALE
+- AC-5.4: Output is a readable table in the terminal
+```
 
-#### Acceptance Criteria
+---
 
-1. WHEN a logo is successfully fetched, THE Cache Manager SHALL store it in Cloudflare KV with the server ID as the key
-2. THE Cache Manager SHALL set a 24-hour TTL on all cached logos
-3. WHEN a logo is requested and exists in cache, THE Cache Manager SHALL return the cached logo without external fetch
-4. WHEN a logo is requested and is expired or missing in cache, THE Cache Manager SHALL fetch and cache the logo
-5. THE Cache Manager SHALL support cache invalidation for specific server IDs
+### `design.md`
 
-### Requirement 4: Performance Requirements
+```markdown
+# Technical Design
 
-**User Story:** As a user, I want logos to load quickly without impacting page performance, so that the directory remains responsive.
+## Architecture Overview
+All changes are additive. No existing functions are removed. New functions are 
+composed into the existing `runDiscovery()` call in `discover.ts`.
 
-#### Acceptance Criteria
+## Type Definitions
+Add to `src/ingest/types.ts` (create if not exists):
 
-1. THE Logo System SHALL achieve LCP < 2.5s for the directory page
-2. THE Logo System SHALL achieve a cache hit rate ≥ 90% for logo requests
-3. WHEN loading the directory page, THE Logo System SHALL load logos with low priority (after core content)
-4. THE Logo System SHALL limit concurrent logo fetches to 4 per page load
-5. WHEN a logo fetch takes longer than 1 second, THE Logo System SHALL display a placeholder
+```typescript
+export type ContentType = 'news' | 'research' | 'project';
+export type SearchEngine = 'exa' | 'tavily';
+export type QueryCategory = 'research' | 'startup' | 'enterprise' | 'policy' | 'consumer';
 
-### Requirement 5: Reliability and Fallback
+export interface CategoryQuery {
+  category: QueryCategory;
+  engine: SearchEngine;
+  queries: string[];
+}
 
-**User Story:** As a user, I want to always see an avatar even if logos fail, so that the interface remains complete and professional.
+export interface ArxivPaper {
+  title: string;
+  abstract: string;
+  authors: string[];
+  url: string;
+  publishedDate: string;
+  categories: string[];
+}
 
-#### Acceptance Criteria
+export interface NormalizedItem {
+  title: string;
+  url: string;
+  summary: string;
+  source: string;
+  publishedDate: string;
+  contentType: ContentType;
+  score?: number;
+}
 
-1. IF any logo fetch fails, THEN THE Logo System SHALL gracefully degrade to the fallback avatar
-2. WHEN a logo fetch times out, THEN THE Logo System SHALL display the fallback avatar
-3. IF Cloudflare KV is unavailable, THEN THE Logo System SHALL continue operation with fresh fetches
-4. WHEN multiple logo sources fail, THEN THE Logo System SHALL display the first-letter gradient avatar as final fallback
-5. THE Logo System SHALL log all logo fetch failures for monitoring
+export interface ShowHNResult {
+  title: string;
+  url: string;
+  points: number;
+  commentUrl: string;
+  author: string;
+  createdAt: string;
+}
+```
 
-### Requirement 6: Accessibility
+## Module Changes
 
-**User Story:** As a user with visual impairments, I want logos to have proper accessibility attributes, so that screen readers can describe them.
+### `src/ingest/generate-queries.ts`
+- REMOVE: `generateQueries()` (or keep as deprecated fallback)
+- ADD: `generateCategoryQueries(): CategoryQuery[]`
+- Query banks: 5-7 queries per category, hardcoded strings
+- Startup queries MUST include: `-OpenAI -Google -Meta -Microsoft -Amazon -Apple` 
+  exclusion logic passed to search layer
 
-#### Acceptance Criteria
+### `src/ingest/search.ts`
+- ADD: `fetchShowHN(query: string, maxResults: number): Promise<ShowHNResult[]>`
+- UPDATE: route CategoryQuery objects to correct engine (exa vs tavily)
+- Endpoint: `https://hn.algolia.com/api/v1/search`
+- Params: `tags=show_hn,story`, `numericFilters=created_at_i>[unix_yesterday]`, 
+  `hitsPerPage=maxResults`
 
-1. WHEN a logo is displayed, THE Logo System SHALL include an alt attribute with the server name
-2. WHEN a fallback avatar is displayed, THE Logo System SHALL include an aria-label with the server name
-3. THE Logo System SHALL ensure logo contrast meets WCAG 2.1 AA standards
-4. WHERE logos are clickable, THE Logo System SHALL include appropriate link attributes
-5. THE Logo System SHALL support keyboard navigation for logo elements
+### `src/ingest/feeds.ts`
+- ADD: `fetchArxivPapers(maxResults: number): Promise<ArxivPaper[]>`
+- Endpoint: `https://export.arxiv.org/api/query`
+- Params: `search_query=cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.CL`
+- `sortBy=submittedDate&sortOrder=descending`
+- Parse Atom XML using native `DOMParser` (available in CF Workers)
+- Date filter: reject papers older than 7 days
 
-### Requirement 7: Logo Quality and Consistency
+### `src/ingest/evaluate.ts`
+- ADD: `detectContentType(item: NormalizedItem): ContentType`
+  - Heuristics: URL contains `arxiv.org` | `semanticscholar` | `paperswithcode` → `research`
+  - URL contains `github.com` | `show HN` | `huggingface.co/spaces` → `project`
+  - Default → `news`
+- ADD: separate LLM prompt constant `RESEARCH_SCORING_PROMPT` (see below)
+- UPDATE: `evaluateItem()` to branch on contentType
+- ADD: post-scoring guarantee: if no research item scores above threshold, 
+  force-include the highest-scoring research item anyway
 
-**User Story:** As a user, I want logos to be consistent in appearance, so that the directory looks professional.
+### `src/ingest/discover.ts`
+- UPDATE: `runDiscovery()` to call `fetchArxivPapers()` and `fetchShowHN()`
+- Merge results with existing RSS + Exa/Tavily results before evaluation step
+- Pass contentType through to evaluate step
 
-#### Acceptance Criteria
+### `check-feeds.ts` (project root, not in src/)
+- Standalone script, no Worker dependencies
+- Read `feeds.json`, fetch each URL with `fetch()`, report status table
+- Run with: `npx ts-node check-feeds.ts`
 
-1. WHEN a logo is larger than 48x48px, THE Logo Resizer SHALL scale it to fit within 48x48px bounds
-2. WHEN a logo has transparency, THE Logo System SHALL render it on a white background
-3. WHEN a logo is not square, THE Logo Cropper SHALL crop it to a square before resizing
-4. THE Logo System SHALL reject logos larger than 500KB
-5. IF a logo is corrupted or invalid, THEN THE Logo System SHALL display the fallback avatar
+## LLM Prompts
 
-### Requirement 8: Monitoring and Analytics
+### `RESEARCH_SCORING_PROMPT`
+```
+You are evaluating an AI research paper for a technically curious but non-academic 
+newsletter audience.
 
-**User Story:** As a developer, I want to monitor logo system performance, so that I can identify and fix issues.
+Score this paper from 1-10 on:
+- Accessibility: Can the key insight be explained in 2 sentences to a developer? (40%)
+- Novelty: Does it represent a genuinely new approach or result? (35%)  
+- Relevance: Does it have practical implications for AI practitioners? (25%)
 
-#### Acceptance Criteria
+Return JSON: { "score": number, "headline": string, "tldr": string }
+The headline should read like a newsletter headline, not an academic title.
+The tldr should be 1-2 sentences a developer would find interesting.
+```
+```
 
-1. THE Monitoring System SHALL track logo fetch success rate
-2. THE Monitoring System SHALL track cache hit rate
-3. THE Monitoring System SHALL track average logo fetch latency
-4. THE Monitoring System SHALL alert when cache hit rate drops below 80%
-5. THE Monitoring System SHALL provide a dashboard for logo system metrics
+---
 
-### Requirement 9: Configuration and Extensibility
+### `tasks.md`
 
-**User Story:** As a developer, I want the logo system to be configurable, so that I can adjust sources and behavior without code changes.
+```markdown
+# Implementation Tasks
 
-#### Acceptance Criteria
+Complete tasks in order. Each task is a single, verifiable code change.
+Do not mark a task complete without writing the actual code.
 
-1. THE Configuration Manager SHALL allow enabling/disabling each logo source
-2. THE Configuration Manager SHALL allow configuring cache TTL
-3. THE Configuration Manager SHALL allow configuring timeout values for external APIs
-4. THE Configuration Manager SHALL support environment-specific configuration
-5. WHEN configuration changes, THE Logo System SHALL apply changes without restart
+---
 
-### Requirement 10: Parser and Serializer Requirements
+## Phase 1: Type Foundation
+- [ ] **TASK-1** Create `src/ingest/types.ts` with all interfaces from design.md: 
+  `ContentType`, `SearchEngine`, `QueryCategory`, `CategoryQuery`, `ArxivPaper`, 
+  `NormalizedItem`, `ShowHNResult`
 
-**User Story:** As a developer, I want to store and retrieve logo metadata, so that the system can track logo sources and status.
+---
 
-#### Acceptance Criteria
+## Phase 2: New Data Sources
 
-1. WHEN storing logo metadata, THE Metadata Serializer SHALL serialize LogoMetadata objects to JSON
-2. WHEN retrieving logo metadata, THE Metadata Parser SHALL parse JSON into LogoMetadata objects
-3. THE Metadata Serializer SHALL preserve all LogoMetadata fields during serialization
-4. FOR ALL valid LogoMetadata objects, parsing then serializing then parsing SHALL produce an equivalent object (round-trip property)
-5. WHEN invalid metadata is provided, THE Metadata Parser SHALL return a descriptive error
+- [ ] **TASK-2** In `src/ingest/feeds.ts`, add function `fetchArxivPapers(maxResults: 
+  number): Promise<ArxivPaper[]>` that fetches from 
+  `https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.CL&sortBy=submittedDate&sortOrder=descending&max_results={maxResults}`, 
+  parses the Atom XML response using DOMParser, filters to last 7 days, and returns 
+  structured `ArxivPaper[]`. Handle fetch errors by returning `[]` not throwing.
 
-## Success Metrics
+- [ ] **TASK-3** In `src/ingest/search.ts`, add function `fetchShowHN(query: string, 
+  maxResults: number): Promise<ShowHNResult[]>` that calls 
+  `https://hn.algolia.com/api/v1/search?query={query}&tags=show_hn,story&hitsPerPage={maxResults}&numericFilters=created_at_i>{yesterdayUnix}`, 
+  filters results to minimum 3 points, and returns `ShowHNResult[]`. 
+  Handle fetch errors by returning `[]` not throwing.
 
-- **Logo Coverage**: ≥95% of servers display actual logos (not fallback avatars)
-- **Performance**: LCP < 2.5s, cache hit rate ≥90%
-- **Reliability**: Logo fetch success rate ≥98%
-- **User Experience**: No visible layout shifts during logo loading
-- **Cost**: Minimize external API calls through effective caching
+---
 
-## Constraints
+## Phase 3: Category Query System
 
-- Must use Cloudflare KV for caching
-- Must maintain backward compatibility with existing first-letter avatars
-- Must not block page rendering while fetching logos
-- Must handle rate limits from external APIs (GitHub, favicon APIs)
-- Must comply with copyright and terms of service for logo sources
+- [ ] **TASK-4** In `src/ingest/generate-queries.ts`, add the following query banks 
+  as constants:
+  - `RESEARCH_QUERIES`: 6 queries targeting preprints, benchmarks, model evals 
+    (routed to Exa)
+  - `STARTUP_QUERIES`: 6 queries with explicit big-tech exclusions for indie/small 
+    team launches (routed to Tavily)
+  - `ENTERPRISE_QUERIES`: 5 queries for enterprise AI adoption news (routed to Tavily)
+  - `POLICY_QUERIES`: 5 queries for AI regulation and governance (routed to Exa)
+  - `CONSUMER_QUERIES`: 5 queries for consumer-facing AI products (routed to Tavily)
+
+- [ ] **TASK-5** In `src/ingest/generate-queries.ts`, add function 
+  `generateCategoryQueries(): CategoryQuery[]` that returns one `CategoryQuery` 
+  object per category using the banks from TASK-4. Export it.
+
+- [ ] **TASK-6** In `src/ingest/search.ts`, update the main search orchestration 
+  function to accept `CategoryQuery[]` input and route each category to its 
+  specified engine. Startup queries must pass exclusion terms to the engine's 
+  exclude parameter.
+
+---
+
+## Phase 4: Research-Aware Scoring
+
+- [ ] **TASK-7** In `src/ingest/evaluate.ts`, add function `detectContentType(item: 
+  NormalizedItem): ContentType` using URL-based heuristics: `arxiv.org` → 
+  `research`, `github.com` + `show_hn` + `huggingface.co/spaces` + 
+  `paperswithcode.com` → `project`, else → `news`.
+
+- [ ] **TASK-8** In `src/ingest/evaluate.ts`, add the `RESEARCH_SCORING_PROMPT` 
+  constant exactly as specified in design.md.
+
+- [ ] **TASK-9** In `src/ingest/evaluate.ts`, update the item evaluation function to 
+  branch: if `contentType === 'research'` use `RESEARCH_SCORING_PROMPT` and the 
+  Mistral client (faster/cheaper for this task); else use the existing news prompt.
+
+- [ ] **TASK-10** In `src/ingest/evaluate.ts`, after all items are scored, add a 
+  guarantee: if zero research items are in the top-N selected items, force-insert 
+  the highest-scoring research item into the selection, bumping the lowest-scoring 
+  news item.
+
+---
+
+## Phase 5: Wire It Together
+
+- [ ] **TASK-11** In `src/ingest/discover.ts`, inside `runDiscovery()`:
+  1. Call `fetchArxivPapers(10)` and `fetchShowHN('AI tool', 15)` in parallel 
+     with `Promise.all()`
+  2. Convert arXiv results to `NormalizedItem[]` with `contentType: 'research'`
+  3. Convert ShowHN results to `NormalizedItem[]` with `contentType: 'project'`
+  4. Merge all results before the evaluate step
+  5. Pass `contentType` through to `evaluate.ts`
+
+- [ ] **TASK-12** Replace the `generateQueries()` call in `discover.ts` with 
+  `generateCategoryQueries()` and update the search call to use the new 
+  category-routed search from TASK-6.
+
+---
+
+## Phase 6: Feed Health Utility
+
+- [ ] **TASK-13** Create `check-feeds.ts` in the project root. It must:
+  1. Import and read `feeds.json`
+  2. For each feed: fetch the URL, record HTTP status, parse JSON, count items, 
+     find most recent item date
+  3. Print a table: `feedUrl | status | itemCount | mostRecentDate | health`
+  4. Mark STALE if: status !== 200, OR itemCount === 0, OR mostRecentDate > 14 
+     days ago
+  5. Print a summary count of healthy vs stale feeds at the end
+  Runnable via `npx ts-node check-feeds.ts` with no Worker dependencies.
+
+---
+
+## Verification Checklist
+Before marking this spec complete:
+- [ ] `npx ts-node check-feeds.ts` runs and prints a table without errors
+- [ ] `wrangler dev` starts without TypeScript errors
+- [ ] A test run logs at least 1 arXiv paper and 1 ShowHN item in the discovery output
+- [ ] A test run produces a selection that includes at least 1 research item
+- [ ] The generated newsletter has a story from a company other than the 
+  top-5 big tech names
+```
