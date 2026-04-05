@@ -1,5 +1,6 @@
 import { chatWithMistral } from "../llm/mistral.js";
 import { log } from "../logger.js";
+import type { CategoryQuery } from "./types.js";
 
 export async function generateSearchQueries(): Promise<string[]> {
   const today = new Date().toISOString().substring(0, 10);
@@ -111,5 +112,84 @@ function getDefaultQueries(): string[] {
 
     // Big Tech (limited)
     "OpenAI Anthropic Google AI major announcements today",
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Category-based query banks
+// ---------------------------------------------------------------------------
+
+export const RESEARCH_QUERIES: string[] = [
+  "AI research preprint benchmark evaluation new paper",
+  "machine learning model training technique novel approach arxiv",
+  "LLM architecture innovation research paper 2024 2025",
+  "AI infrastructure scaling distributed training research",
+  "model interpretability explainability research paper",
+  "AI evaluation benchmark leaderboard new results",
+];
+
+export const STARTUP_QUERIES: string[] = [
+  "AI startup tool launch -OpenAI -Google -Meta -Microsoft -Amazon -Apple",
+  "AI developer tool new release indie small team -OpenAI -Google",
+  "AI framework launch new product -Microsoft -Amazon -Meta",
+  "new AI company product launch funding -OpenAI -Anthropic -Google",
+  "AI tool release open source indie developer -big tech",
+  "small team AI project launch product hunt show hn",
+];
+
+export const ENTERPRISE_QUERIES: string[] = [
+  "enterprise AI adoption deployment case study",
+  "AI vendor contract deal enterprise announcement",
+  "AI productivity ROI business metrics study",
+  "enterprise LLM deployment private cloud",
+  "AI workflow automation business integration",
+];
+
+export const POLICY_QUERIES: string[] = [
+  "AI regulation policy government announcement",
+  "AI governance framework legislation proposal",
+  "AI safety regulation compliance news",
+  "AI policy impact industry technology sector",
+  "AI regulation EU US China development",
+];
+
+export const CONSUMER_QUERIES: string[] = [
+  "consumer AI product app new release launch",
+  "AI app consumer facing new features update",
+  "personal AI assistant productivity tool launch",
+  "consumer AI product review hands-on",
+  "AI mobile app new release features",
+];
+
+/**
+ * Generate category-based search queries routed to the appropriate engine.
+ */
+export function generateCategoryQueries(): CategoryQuery[] {
+  return [
+    {
+      category: "research",
+      engine: "exa",
+      queries: RESEARCH_QUERIES,
+    },
+    {
+      category: "startup",
+      engine: "tavily",
+      queries: STARTUP_QUERIES,
+    },
+    {
+      category: "enterprise",
+      engine: "tavily",
+      queries: ENTERPRISE_QUERIES,
+    },
+    {
+      category: "policy",
+      engine: "exa",
+      queries: POLICY_QUERIES,
+    },
+    {
+      category: "consumer",
+      engine: "tavily",
+      queries: CONSUMER_QUERIES,
+    },
   ];
 }

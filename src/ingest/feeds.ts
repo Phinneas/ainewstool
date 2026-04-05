@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { log } from "../logger.js";
+import type { ArxivPaper } from "./types.js";
 
 export interface FeedDefinition {
   name: string;
@@ -142,3 +143,92 @@ export const ALL_FEEDS: FeedDefinition[] = enabledFeeds;
 
 /** Domain-to-source mapping for Google News articles */
 export const DOMAIN_SOURCE_MAP: Record<string, string> = config.domainSourceMap;
+
+/**
+ * Fetch recent AI research papers from arXiv
+ * @param maxResults Maximum number of papers to fetch
+ * @returns Array of ArxivPaper objects, or empty array on error
+ */
+export async function fetchArxivPapers(maxResults: number): Promise<ArxivPaper[]> {
+  try {
+    const url = `https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.CL&sortBy=submittedDate&sortOrder=descending&max_results=${maxResults}`;
+    
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'AI-Newsletter-Bot/1.0' },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) {
+      log.error('arXiv API returned error', { status: response.status });
+      return [];
+    }
+
+    const xml = await response.text();
+    const papers = parseArxivXml(xml);
+    
+    // Filter to last 7 days
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const recentPapers = papers.filter(p => new Date(p.publishedDate) > oneWeekAgo);
+    
+    log.info(`arXiv: fetched ${recentPapers.length} papers from last 7 days`);
+    return recentPapers;
+  } catch (error) {
+    log.error('Failed to fetch arXiv papers', { error: error instanceof Error ? error.message : String(error) });
+    return [];
+  }
+}
+
+/**
+ * Parse arXiv Atom XML response into structured papers
+ */
+function parseArxivXml(xml: string): ArxivPaper[] {
+  const papers: ArxivPaper[] = [];
+  
+  // Extract entries using regex (lightweight for Workers)
+  const entryMatches = xml.matchAll(/<entry>([\s\S]*?)<\/entry>/gi);
+  
+  for (const entryMatch of entryMatches) {
+    const entryXml = entryMatch[1];
+    
+    const title = extractTag(entryXml, 'title');
+    const abstract = extractTag(entryXml, 'summary');
+    const published = extractTag(entryXml, 'published');
+    const urlMatch = entryXml.match(/<id>([^<]+)<\/id>/i);
+    const url = urlMatch ? urlMatch[1] : '';
+    
+    // Extract authors
+    const authors: string[] = [];
+    const authorMatches = entryXml.matchAll(/<name>([^<]+)<\/name>/gi);
+    for (const authorMatch of authorMatches) {
+      authors.push(authorMatch[1]);
+    }
+    
+    // Extract categories
+    const categories: string[] = [];
+    const categoryMatches = entryXml.matchAll(/<term\s+scheme="http:\/\/arxiv.org\/schemas\/atom">([^<]+)<\/term>/gi);
+    for (const categoryMatch of categoryMatches) {
+      categories.push(categoryMatch[1]);
+    }
+    
+    if (title && url) {
+      papers.push({
+        title: title.trim(),
+        abstract: abstract.trim(),
+        authors,
+        url,
+        publishedDate: published || new Date().toISOString(),
+        categories,
+      });
+    }
+  }
+  
+  return papers;
+}
+
+/**
+ * Extract content from XML tag
+ */
+function extractTag(xml: string, tag: string): string {
+  const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\/${tag}>`, 'i'));
+  return match ? match[1]?.trim() || '' : '';
+}

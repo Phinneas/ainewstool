@@ -30,7 +30,7 @@ Do not mark a task complete without writing the actual code.
 
 ## Phase 3: Category Query System
 
-- [ ] **TASK-4** In `src/ingest/generate-queries.ts`, add the following query banks 
+- [~] **TASK-4** In `src/ingest/generate-queries.ts`, add the following query banks 
   as constants:
   - `RESEARCH_QUERIES`: 6 queries targeting preprints, benchmarks, model evals 
     (routed to Exa)

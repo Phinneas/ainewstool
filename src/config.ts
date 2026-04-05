@@ -40,4 +40,7 @@ export const config = {
   exa: {
     apiKey: isWorker ? '' : (process.env.EXA_API_KEY || ''),
   },
+  tavily: {
+    apiKey: isWorker ? '' : (process.env.TAVILY_API_KEY || ''),
+  },
 } as const;
