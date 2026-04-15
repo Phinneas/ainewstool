@@ -1,6 +1,7 @@
 import { log } from "../logger.js";
 import { generateCategoryQueries } from "./generate-queries.js";
 import { routeCategoryQueries, fetchShowHN } from "./search.js";
+import { fetchMonitorEvents } from "./parallel-monitor.js";
 import type { FirecrawlSearchResult } from "./search.js";
 import { fetchArxivPapers } from "./feeds.js";
 import { normalizeSearchResult } from "./normalize.js";
@@ -40,26 +41,48 @@ interface EvaluatedDiscovery extends DiscoveredItem {
  * 6. Extract sources and upload to S3
  */
 export async function runDiscovery(existingUrls: Set<string>): Promise<number> {
-  log.info("Starting AI-powered news discovery...");
+  const runId = `discovery-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}`;
+  log.info("Starting AI-powered news discovery...", { runId });
   const timer = log.timer("discovery-total");
 
   // Step 1: Fetch all sources in parallel
+  // Monitor events are fetched first (pre-accumulated since last run),
+  // then fresh search/discovery runs alongside arXiv and Show HN.
   const categoryQueries = generateCategoryQueries();
 
-  const [categoryResults, arxivPapers, showHNPosts] = await Promise.all([
+  const [monitorEvents, categoryResults, arxivPapers, showHNPosts] = await Promise.all([
+    fetchMonitorEvents(25),
     routeCategoryQueries(categoryQueries),
     fetchArxivPapers(10),
     fetchShowHN("AI tool", 15),
   ]);
 
   log.info(
-    `Sources: ${categoryResults.length} category results, ` +
+    `Sources: ${monitorEvents.length} monitor events, ` +
+      `${categoryResults.length} category results, ` +
       `${arxivPapers.length} arXiv papers, ` +
-      `${showHNPosts.length} Show HN posts`
+      `${showHNPosts.length} Show HN posts`,
+    { runId }
   );
 
   // Step 2: Normalize all sources to DiscoveredItem (FirecrawlSearchResult + contentType)
   const allItems: DiscoveredItem[] = [];
+
+  // Monitor events (pre-accumulated, highest priority — deduplicated below)
+  for (const event of monitorEvents) {
+    if (!event.url) continue;
+    const searchResult: FirecrawlSearchResult = {
+      url: event.url,
+      title: event.title,
+      markdown: event.summary,
+      description: event.summary.slice(0, 200),
+    };
+    allItems.push({
+      item: normalizeSearchResult(searchResult),
+      searchResult,
+      contentType: event.contentType,
+    });
+  }
 
   for (const result of categoryResults) {
     const searchResult: FirecrawlSearchResult = {
@@ -123,7 +146,7 @@ export async function runDiscovery(existingUrls: Set<string>): Promise<number> {
     uniqueItems.push(discovered);
   }
 
-  log.info(`${uniqueItems.length} unique items after deduplication`);
+  log.info(`${uniqueItems.length} unique items after deduplication`, { runId });
 
   if (uniqueItems.length === 0) {
     timer.end();
@@ -142,7 +165,7 @@ export async function runDiscovery(existingUrls: Set<string>): Promise<number> {
     .filter(({ exists }) => !exists)
     .map(({ discovered }) => discovered);
 
-  log.info(`${newItems.length} new items after S3 dedup`);
+  log.info(`${newItems.length} new items after S3 dedup`, { runId });
 
   if (newItems.length === 0) {
     timer.end();
@@ -150,7 +173,7 @@ export async function runDiscovery(existingUrls: Set<string>): Promise<number> {
   }
 
   // Step 5: Evaluate relevance with content-type-aware scoring
-  log.info(`Evaluating ${newItems.length} discovered items...`);
+  log.info(`Evaluating ${newItems.length} discovered items...`, { runId });
 
   const evalResults = await mapConcurrent(
     newItems,
@@ -196,7 +219,8 @@ export async function runDiscovery(existingUrls: Set<string>): Promise<number> {
 
   const researchCount = finalSelection.filter((c) => c.contentType === "research").length;
   log.info(
-    `${finalSelection.length}/${newItems.length} items selected (${researchCount} research)`
+    `${finalSelection.length}/${newItems.length} items selected (${researchCount} research)`,
+    { runId }
   );
 
   if (finalSelection.length === 0) {
@@ -205,7 +229,7 @@ export async function runDiscovery(existingUrls: Set<string>): Promise<number> {
   }
 
   // Step 7: Extract sources and upload to S3
-  log.info(`Uploading ${finalSelection.length} discovered items...`);
+  log.info(`Uploading ${finalSelection.length} discovered items...`, { runId });
 
   const uploadResults = await mapConcurrent(
     finalSelection,
@@ -235,6 +259,7 @@ export async function runDiscovery(existingUrls: Set<string>): Promise<number> {
         url: item.url,
         timestamp: item.publishedTimestamp,
         "feed-url": item.feedUrl,
+        "run-id": runId,
       };
 
       await s3.uploadWithMetadata(
@@ -261,6 +286,7 @@ export async function runDiscovery(existingUrls: Set<string>): Promise<number> {
 
   timer.end();
   log.info("Discovery complete", {
+    runId,
     categories: categoryQueries.length,
     arxivPapers: arxivPapers.length,
     showHNPosts: showHNPosts.length,

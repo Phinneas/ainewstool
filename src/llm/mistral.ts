@@ -22,6 +22,7 @@ export const mistralClient: LLMClient = {
       model: model,
       messages,
       maxTokens,
+      temperature: 0.0,
     });
 
     return response.choices?.[0]?.message?.content as string ?? "";

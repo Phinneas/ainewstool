@@ -3,7 +3,7 @@
  */
 
 export type ContentType = 'news' | 'research' | 'project';
-export type SearchEngine = 'exa' | 'tavily';
+export type SearchEngine = 'exa' | 'tavily' | 'parallel-search' | 'parallel-findall';
 export type QueryCategory = 'research' | 'startup' | 'enterprise' | 'policy' | 'consumer';
 
 export interface CategoryQuery {

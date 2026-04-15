@@ -1,5 +1,7 @@
 import { chatWithMistral } from "../llm/mistral.js";
 import type { ContentType } from "./types.js";
+import { EVALUATE_NEWS_PROMPT } from "../prompts/evaluate-news.js";
+import { EVALUATE_RESEARCH_PROMPT } from "../prompts/evaluate-research.js";
 
 export interface EvaluationResult {
   isRelevant: boolean;
@@ -7,20 +9,8 @@ export interface EvaluationResult {
   score?: number; // numeric score for research items (1-10)
 }
 
-// ---------------------------------------------------------------------------
-// TASK-8: Research scoring prompt (exact text from spec)
-// ---------------------------------------------------------------------------
-
-export const RESEARCH_SCORING_PROMPT = `You are evaluating an AI research paper for a technically curious but non-academic newsletter audience.
-
-Score this paper from 1-10 on:
-- Accessibility: Can the key insight be explained in 2 sentences to a developer? (40%)
-- Novelty: Does it represent a genuinely new approach or result? (35%)
-- Relevance: Does it have practical implications for AI practitioners? (25%)
-
-Return JSON: { "score": number, "headline": string, "tldr": string }
-The headline should read like a newsletter headline, not an academic title.
-The tldr should be 1-2 sentences a developer would find interesting.`;
+// Re-export for any callers that imported the old local constant
+export { EVALUATE_RESEARCH_PROMPT as RESEARCH_SCORING_PROMPT } from "../prompts/evaluate-research.js";
 
 // ---------------------------------------------------------------------------
 // TASK-7: Content type detection via URL heuristics
@@ -61,7 +51,7 @@ export async function evaluateContentRelevance(
 }
 
 async function evaluateResearchContent(content: string): Promise<EvaluationResult> {
-  const prompt = `${RESEARCH_SCORING_PROMPT}\n\n---\n${content}`;
+  const prompt = `${EVALUATE_RESEARCH_PROMPT}\n\n---\n${content}`;
 
   // Use mistral-small: faster/cheaper for structured scoring
   const response = await chatWithMistral({ prompt, maxTokens: 512, model: "mistral-small" });
@@ -88,30 +78,7 @@ async function evaluateResearchContent(content: string): Promise<EvaluationResul
 }
 
 async function evaluateNewsContent(content: string): Promise<EvaluationResult> {
-  const prompt = `Given content fetched from a web page, analyze this content to determine if it is a full piece of content that would be considered relevant to our AI Newsletter which features news stories, tutorials, research, and other interesting happenings in the tech and AI space.
-
-## What IS relevant:
-- AI/ML news, announcements, product launches, and industry developments
-- Tutorials, guides, and how-to content about AI tools, frameworks, and techniques
-- Research papers, paper summaries, and technical deep-dives on AI/ML topics
-- AI policy, regulation, and societal impact analysis
-- AI-adjacent technology (cloud infrastructure for AI, GPU/chip developments, developer tools)
-
-## What is NOT relevant:
-- Job postings or hiring announcements
-- Content centered around industries unrelated to AI/tech
-- Generic marketing content or product pages with no substantive information
-- Content that is too short or thin to be useful (less than a few paragraphs)
-- Listicles of AI tools with no analysis or insight
-
-You must respond with valid JSON in this exact format:
-{
-  "chainOfThought": "your reasoning here",
-  "is_relevant_content": true/false
-}
-
----
-${content}`;
+  const prompt = `${EVALUATE_NEWS_PROMPT}\n${content}`;
 
   const response = await chatWithMistral({ prompt, maxTokens: 2048 });
 

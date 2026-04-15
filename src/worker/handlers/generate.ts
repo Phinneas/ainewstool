@@ -48,8 +48,9 @@ export async function handleGenerateQueue(
       apiKeys.mistral = env.MISTRAL_API_KEY;
       apiKeys.moonshot = env.MOONSHOT_API_KEY;
       apiKeys.ideogram = env.IDEOGRAM_API_KEY ?? '';
-      if (env.Exa) process.env.EXA_API_KEY = env.Exa;
+      if (env.EXA_API_KEY) process.env.EXA_API_KEY = env.EXA_API_KEY;
       if (env.TAVILY_API_KEY) process.env.TAVILY_API_KEY = env.TAVILY_API_KEY;
+      if (env.PARALLEL_API_KEY) process.env.PARALLEL_API_KEY = env.PARALLEL_API_KEY;
 
       const previousNewsletter = await env.INGEST_STATE.get('newsletter:previous') ?? undefined;
 

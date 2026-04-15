@@ -9,6 +9,7 @@ export interface ContentMetadata {
   url: string;
   timestamp: string;
   "feed-url": string;
+  "run-id"?: string;
 }
 
 export interface ContentItem {

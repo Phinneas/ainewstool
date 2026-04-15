@@ -30,8 +30,11 @@ export interface Env {
   ANTHROPIC_API_KEY: string;
   MISTRAL_API_KEY: string;
   MOONSHOT_API_KEY: string;
-  Exa?: string;
+  EXA_API_KEY?: string;
   TAVILY_API_KEY?: string;
+  PARALLEL_API_KEY?: string;
+  PARALLEL_MONITOR_RESEARCH_ID?: string;
+  PARALLEL_MONITOR_STARTUP_ID?: string;
   REDDIT_CLIENT_ID?: string;
   REDDIT_CLIENT_SECRET?: string;
   GHOST_ADMIN_API_KEY: string;
@@ -76,10 +79,11 @@ export default {
     // Pipeline status endpoint — returns per-run metrics and recent errors
     if (req.method === 'GET' && url.pathname === '/status') {
       try {
-        const [ingestRuns, generateRuns, recentErrors] = await Promise.all([
+        const [ingestRuns, generateRuns, recentErrors, dbFailures] = await Promise.all([
           listKvByPrefix(env.INGEST_STATE, 'metrics:run:', 10),
           listKvByPrefix(env.INGEST_STATE, 'metrics:generate:', 5),
           listKvByPrefix(env.INGEST_STATE, 'error:', 10),
+          listKvByPrefix(env.INGEST_STATE, 'db-fail:', 20),
         ]);
 
         // Most recent newsletter publish info
@@ -94,6 +98,7 @@ export default {
           generate_runs: generateRuns,
           recent_errors: recentErrors,
           recent_published: recentPublished.filter(Boolean),
+          db_failures: dbFailures, // SurrealDB write failures tracked here
         };
 
         return new Response(JSON.stringify(status, null, 2), {

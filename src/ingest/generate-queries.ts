@@ -168,12 +168,12 @@ export function generateCategoryQueries(): CategoryQuery[] {
   return [
     {
       category: "research",
-      engine: "exa",
+      engine: "parallel-search",
       queries: RESEARCH_QUERIES,
     },
     {
       category: "startup",
-      engine: "tavily",
+      engine: "parallel-findall",
       queries: STARTUP_QUERIES,
     },
     {
@@ -183,7 +183,7 @@ export function generateCategoryQueries(): CategoryQuery[] {
     },
     {
       category: "policy",
-      engine: "exa",
+      engine: "parallel-search",
       queries: POLICY_QUERIES,
     },
     {

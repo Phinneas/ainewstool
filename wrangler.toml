@@ -74,7 +74,11 @@ id = "d858fcdf0fc84221908e17c523f05aa6"
 # - ANTHROPIC_API_KEY
 # - MISTRAL_API_KEY
 # - MOONSHOT_API_KEY
-# - EXA_API_KEY
+# - EXA_API_KEY                (optional fallback)
+# - TAVILY_API_KEY
+# - PARALLEL_API_KEY
+# - PARALLEL_MONITOR_RESEARCH_ID  (run setup-monitors.ts first)
+# - PARALLEL_MONITOR_STARTUP_ID   (run setup-monitors.ts first)
 # - GHOST_ADMIN_API_KEY
 # - GHOST_API_URL
 # - BEEHIIV_API_KEY          (optional — wrangler secret put BEEHIIV_API_KEY)

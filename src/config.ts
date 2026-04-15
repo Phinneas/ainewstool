@@ -43,4 +43,9 @@ export const config = {
   tavily: {
     apiKey: isWorker ? '' : (process.env.TAVILY_API_KEY || ''),
   },
+  parallel: {
+    apiKey: isWorker ? '' : (process.env.PARALLEL_API_KEY || ''),
+    monitorResearchId: isWorker ? '' : (process.env.PARALLEL_MONITOR_RESEARCH_ID || ''),
+    monitorStartupId: isWorker ? '' : (process.env.PARALLEL_MONITOR_STARTUP_ID || ''),
+  },
 } as const;
