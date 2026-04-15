@@ -329,9 +329,20 @@ export class FeedFetcher {
         .replace(/^-|-$/g, '');
       
       const date = pubDate ? new Date(pubDate).toISOString().split('T')[0] : 'no-date';
+      const result = `${date}_${sourceName}_${slug || 'index'}`.substring(0, 200);
       
-      return `${date}_${sourceName}_${slug || 'index'}`.substring(0, 200);
-    } catch {
+      log.debug('Generated upload filename', { 
+        date, 
+        sourceName, 
+        slug, 
+        pubDate,
+        url,
+        uploadFileName: result 
+      });
+      
+      return result;
+    } catch (error) {
+      log.error('Failed to generate upload filename', { url, sourceName, error });
       return `${sourceName}_${Date.now()}`;
     }
   }

@@ -236,7 +236,16 @@ export async function handleGenerateCron(env: Env): Promise<void> {
   log.info('generate cron triggered', {
     generate_id: generateId,
     date_range: `${dates[dates.length - 1]} to ${dates[0]}`,
+    search_dates: dates,
+    date_count: dates.length
   });
+
+  // Store the dates in KV for debugging
+  await env.INGEST_STATE.put(`debug:generate-dates:${generateId}`, JSON.stringify({
+    dates,
+    timestamp: Date.now(),
+    triggered_at: new Date().toISOString()
+  }), { expirationTtl: 86400 });
 
   await env.GENERATE_QUEUE.send({
     type: 'generate',

@@ -68,12 +68,23 @@ async function loadContentFromR2(
   const entries: ContentEntry[] = [];
 
   for (const date of dates) {
-    const listed = await bucket.list({ prefix: `${date}_` });
+    const prefix = `${date}_`;
+    log.info(`Searching R2 with prefix: "${prefix}"`);
+    
+    const listed = await bucket.list({ prefix });
+    log.info(`  R2 list returned ${listed.objects.length} total objects`);
+    
     const mdKeys = listed.objects
       .map((o: R2Object) => o.key)
       .filter((k: string) => k.endsWith(".md"));
-
-    log.info(`  ${date}: ${mdKeys.length} files`);
+    
+    log.info(`  Found ${mdKeys.length} .md files for date ${date}`);
+    if (mdKeys.length > 0) {
+      log.info(`  Sample files:`, { 
+        files: mdKeys.slice(0, 5),
+        total: mdKeys.length
+      });
+    }
 
     for (const key of mdKeys) {
       try {

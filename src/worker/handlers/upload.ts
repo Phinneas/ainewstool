@@ -54,8 +54,11 @@ export async function handleUploadQueue(batch: MessageBatch<UploadMessage>, env:
           'feed-url': item.feedUrl,
         };
 
+        const mdKey = `${item.uploadFileName}.md`;
+        const htmlKey = `${item.uploadFileName}.html`;
+        
         await env.CONTENT_BUCKET.put(
-          `${item.uploadFileName}.md`,
+          mdKey,
           scrapeResult.content,
           {
             httpMetadata: { contentType: `application/vnd.aitools.${item.feedType}+md` },
@@ -64,7 +67,7 @@ export async function handleUploadQueue(batch: MessageBatch<UploadMessage>, env:
         );
 
         await env.CONTENT_BUCKET.put(
-          `${item.uploadFileName}.html`,
+          htmlKey,
           scrapeResult.rawHtml,
           {
             httpMetadata: { contentType: `application/vnd.aitools.${item.feedType}.raw+html` },
@@ -77,6 +80,13 @@ export async function handleUploadQueue(batch: MessageBatch<UploadMessage>, env:
           status: 'uploaded',
           metadata,
         }));
+        
+        batchLog.info('Upload successful', { 
+          title: item.title,
+          mdKey,
+          datePrefix: item.uploadFileName.split('_')[0],
+          size: scrapeResult.content.length
+        });
 
         await env.INGEST_STATE.put(
           `item:${item.uploadFileName}`,
