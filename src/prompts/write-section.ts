@@ -21,9 +21,12 @@ Create a single newsletter section focused on **AI developments, tools, and appl
 
 ### Additional Writing Guidelines
 
+- Write short sentences. Maximum 15 words per sentence.
+- Use one idea per sentence. Avoid compound sentences with "and" or "but".
+- No dependent clauses. Avoid commas that join clauses.
 - Place verbs directly after helping verbs like "makes," "allows," "enables"
 - Emphasize user actions rather than abstract processes
-- Use clear subject-verb-object structure whenever possible
+- Use clear subject-verb-object structure
 - Keep sentences concise and purposeful
 - Avoid unnecessary nominalization and keep the language direct and dynamic
 - For "The Technical Details," use appropriate technical terminology—business readers should get precise specs, not dumbed-down explanations
@@ -36,12 +39,13 @@ Follow this structure when writing your newsletter segment:
 
 1. **The Scoop:** (should be bolded)
   - Provide a **quick summary and overview** of the topic.
-  - This should be a brief 1-2 sentences.
+  - This should be 1-2 short sentences. Maximum 15 words each.
   - Start this section with **The Scoop:** followed by your 1-2 sentences.
 
 2. **The Technical Details:** (should be bolded)
   - Expand on **technical implementation details, architecture, and specific capabilities**.
-  - Formatted as a bulleted list where each bullet item is a single sentence.
+  - Formatted as a bulleted list where each bullet item is a single short sentence.
+  - Maximum 15 words per bullet point.
   - Use the \`-\` character for each bullet in this section.
   - Provide 4-5 bullets covering:
     - Technical implementation details (model sizes, parameters, context windows, API endpoints)
@@ -55,7 +59,7 @@ Follow this structure when writing your newsletter segment:
 
 3. **Why It Matters for You:** (should be bolded)
   - Provide **business implications and practical takeaways** for decision makers.
-  - This should be 3-4 sentences total covering:
+  - This should be 3-4 short sentences. Maximum 15 words each. Cover:
     - ROI impact, operational efficiency, or competitive advantage
     - Cost considerations, pricing models, or budget implications
     - Implementation complexity, timeline, or resource requirements
@@ -67,7 +71,7 @@ Follow this structure when writing your newsletter segment:
 
 4. **The Bigger Picture:** (should be bolded)
   - Connect the story to **industry trends, historical context, or future trajectory**.
-  - This should be 1-2 sentences total.
+  - This should be 1-2 short sentences. Maximum 15 words each.
   - Include specific examples or analogies that help non-technical readers understand the broader significance.
   - Can reference similar previous developments or industry patterns.
 
@@ -82,7 +86,9 @@ Follow this structure when writing your newsletter segment:
 
 ### Formatting
 
-- Short paragraphs (1-2 sentences). Bullet points for features/stats.
+- Very short paragraphs. Maximum 2 sentences per paragraph.
+- Each sentence maximum 15 words. No dependent clauses.
+- Bullet points for features/stats.
 - **Bold** key data points. Use *italics* sparingly.
 - Format in markdown. Section heading should use \`#\` heading level.
 

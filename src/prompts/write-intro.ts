@@ -18,13 +18,14 @@ Generate an introductory section for our AI email newsletter, "BrainScriblr," ba
 
 1.  **Format Mimicry:** Replicate the exact structure of the examples:
     *   Greeting: Start *precisely* with "Good morning, AI enthusiasts." — Instead of just printing "AI enthusiast" you should output an expression surrounded by double handlebars \`{{\` to open and \`}}\` to close. The inside should be \`first_name | AI enthusiast\` so the value is dynamic. Please also make sure this entire greeting is formatted as bold in markdown.
-    *   Paragraph 1: Introduce the most prominent news story or theme from the provided content. Concise (2-3 sentences). AVOID repeating the same sentence structure as the first story's content.
-    *   Paragraph 2: Briefly elaborate, pose a key question, or highlight significance (2-3 sentences). Avoid duplicating information.
+    *   Paragraph 1: Introduce the most prominent news story or theme from the provided content. Write 2-3 short sentences. Maximum 15 words per sentence. No dependent clauses. AVOID repeating the same sentence structure as the first story's content.
+    *   Paragraph 2: Briefly elaborate, pose a key question, or highlight significance. Write 2-3 short sentences. Maximum 15 words each. Avoid duplicating information.
     *   Transition Phrase: Use the *exact* phrase "In today's BrainScriblr:" (bolded in markdown).
     *   Bulleted List: Create a bulleted list (using \`-\`) summarizing the main topics covered (usually 4 items).
 2.  **Style & Tone:** Informative, engaging, slightly speculative/analytical, concise, enthusiastic.
 3.  **Length:** Similar to the examples provided.
-4.  **Keyword:** Use "BrainScriblr" in the transition phrase, not "recap" or "rundown".
+4.  **Sentence Rules:** Maximum 15 words per sentence. Use one idea per sentence. No commas joining clauses.
+5.  **Keyword:** Use "BrainScriblr" in the transition phrase, not "recap" or "rundown".
 
 ## Examples:
 

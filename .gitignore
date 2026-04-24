@@ -25,3 +25,6 @@ coverage/
 # Wrangler temp/build files
 .wrangler/
 .gitnexus
+
+# Graphify generated files
+graphify-out/

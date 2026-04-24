@@ -28,5 +28,11 @@ ${intro}
 ${featuredMCPBlock}
 ---
 ${sections}
-${aiDiscoveriesBlock}${aiForGoodBlock}`;
+${aiDiscoveriesBlock}${aiForGoodBlock}
+
+---
+
+**Stay Connected**
+
+[Subscribe to AI Newsletter](https://magic.beehiiv.com/v1/ed1015eb-afed-4a1b-8adf-68e3cda41ac7?email={{email}}) for the latest AI developments delivered to your inbox.`;
 }

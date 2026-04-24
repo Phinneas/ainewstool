@@ -20,7 +20,7 @@ You are an expert AI Newsletter Writer creating a TL;DR summary section for "Bra
 
 ## Context:
 
-Create a "Quick Scribbles" section that summarizes ALL the main stories in this newsletter. This appears at the TOP of the newsletter to give readers a fast overview. Each item should be one concise sentence.
+Create a "Quick Scribbles" section that summarizes ALL the main stories in this newsletter. This appears at the TOP of the newsletter to give readers a fast overview. Each item should be one short sentence. Maximum 15 words per sentence.
 
 Today's date: *${date}*.
 
@@ -28,7 +28,7 @@ Today's date: *${date}*.
 
 1. You MUST summarize ALL ${storyCount} main stories found in the content below
 2. Use EXACTLY this bullet format for each story:
-   - **Company/Topic** — One sentence summary.
+   - **Company/Topic** — One short sentence summary. Maximum 15 words.
 
 ## Subject Line
 ${subjectLine}
