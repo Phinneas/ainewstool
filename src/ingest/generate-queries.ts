@@ -139,9 +139,7 @@ export const STARTUP_QUERIES: string[] = [
 
 export const ENTERPRISE_QUERIES: string[] = [
   "enterprise AI adoption deployment case study",
-  "AI vendor contract deal enterprise announcement",
   "AI productivity ROI business metrics study",
-  "enterprise LLM deployment private cloud",
   "AI workflow automation business integration",
 ];
 
@@ -155,9 +153,7 @@ export const POLICY_QUERIES: string[] = [
 
 export const CONSUMER_QUERIES: string[] = [
   "consumer AI product app new release launch",
-  "AI app consumer facing new features update",
   "personal AI assistant productivity tool launch",
-  "consumer AI product review hands-on",
   "AI mobile app new release features",
 ];
 

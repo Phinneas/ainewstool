@@ -10,6 +10,7 @@
 import { Env } from '../index.js';
 import { generateNewsletter } from '../../generate/index.js';
 import { apiKeys } from '../../llm/api-keys.js';
+import { setTavilyKv } from '../../ingest/tavily-search.js';
 import { Logger, PipelineMetrics } from '../lib/logger.js';
 
 interface GenerateMessage {
@@ -50,6 +51,7 @@ export async function handleGenerateQueue(
       apiKeys.ideogram = env.IDEOGRAM_API_KEY ?? '';
       if (env.EXA_API_KEY) process.env.EXA_API_KEY = env.EXA_API_KEY;
       if (env.TAVILY_API_KEY) process.env.TAVILY_API_KEY = env.TAVILY_API_KEY;
+      setTavilyKv(env.INGEST_STATE);
       if (env.PARALLEL_API_KEY) process.env.PARALLEL_API_KEY = env.PARALLEL_API_KEY;
 
       const previousNewsletter = await env.INGEST_STATE.get('newsletter:previous') ?? undefined;

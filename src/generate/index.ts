@@ -68,7 +68,7 @@ async function loadContentFromR2(
   const entries: ContentEntry[] = [];
 
   for (const date of dates) {
-    const prefix = `${date}_`;
+    const prefix = `${date}/`;
     log.info(`Searching R2 with prefix: "${prefix}"`);
     
     const listed = await bucket.list({ prefix });

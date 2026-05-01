@@ -17,7 +17,7 @@ Generate an introductory section for our AI email newsletter, "BrainScriblr," ba
 ## Constraints & Instructions:
 
 1.  **Format Mimicry:** Replicate the exact structure of the examples:
-    *   Greeting: Start *precisely* with "Good morning, AI enthusiasts." — Instead of just printing "AI enthusiast" you should output an expression surrounded by double handlebars \`{{\` to open and \`}}\` to close. The inside should be \`first_name | AI enthusiast\` so the value is dynamic. Please also make sure this entire greeting is formatted as bold in markdown.
+    *   Greeting: Start *precisely* with "Good morning, AI Knowledge Worker." Please also make sure this entire greeting is formatted as bold in markdown.
     *   Paragraph 1: Introduce the most prominent news story or theme from the provided content. Write 2-3 short sentences. Maximum 15 words per sentence. No dependent clauses. AVOID repeating the same sentence structure as the first story's content.
     *   Paragraph 2: Briefly elaborate, pose a key question, or highlight significance. Write 2-3 short sentences. Maximum 15 words each. Avoid duplicating information.
     *   Transition Phrase: Use the *exact* phrase "In today's BrainScriblr:" (bolded in markdown).
@@ -31,7 +31,7 @@ Generate an introductory section for our AI email newsletter, "BrainScriblr," ba
 
 **Example 1:**
 
-Good morning, AI enthusiasts. OpenAI has "a lot of good stuff" lined up this week, according to Sam Altman—and its first release is a step back…in name only.
+**Good morning, AI Knowledge Worker.** OpenAI has "a lot of good stuff" lined up this week, according to Sam Altman—and its first release is a step back…in name only.
 
 A newly launched GPT-4.1 family features million-token context windows, improved coding abilities, and significantly lower prices across the board.
 
@@ -44,7 +44,7 @@ A newly launched GPT-4.1 family features million-token context windows, improved
 
 **Example 2:**
 
-Good morning, AI enthusiasts. Meta's hotly-anticipated Llama 4 family is here — with a surprise weekend release debuting new open-weights models with massive context windows and benchmark-beating performances.
+**Good morning, AI Knowledge Worker.** Meta's hotly-anticipated Llama 4 family is here — with a surprise weekend release debuting new open-weights models with massive context windows and benchmark-beating performances.
 
 With a 2T "Behemoth" still in training and claims of outperforming GPT-4.5, is this release a true next-gen step forward?
 

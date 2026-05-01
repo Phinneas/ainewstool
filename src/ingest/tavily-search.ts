@@ -13,6 +13,15 @@ const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 3000;
 const REQUEST_TIMEOUT_MS = 30_000;
+const CACHE_TTL_SECONDS = 90_000; // ~25 hours
+
+// Set by worker handlers before Tavily calls — matches the apiKeys pattern.
+// CLI path leaves this undefined and skips caching.
+// eslint-disable-next-line prefer-const
+export let tavilyKv: KVNamespace | undefined;
+export function setTavilyKv(kv: KVNamespace): void {
+  tavilyKv = kv;
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -59,6 +68,17 @@ export async function tavilySearch(
   if (!apiKey) {
     log.warn("[tavily-search] TAVILY_API_KEY not configured — skipping Tavily search");
     return [];
+  }
+
+  // Check KV cache before hitting the API
+  const today = new Date().toISOString().slice(0, 10);
+  const cacheKey = `tavily:cache:${today}:${query}`;
+  if (tavilyKv) {
+    const cached = await tavilyKv.get(cacheKey);
+    if (cached) {
+      log.info(`[tavily-search] cache hit: ${query}`);
+      return JSON.parse(cached) as FirecrawlSearchResult[];
+    }
   }
 
   const body: Record<string, unknown> = {
@@ -132,6 +152,9 @@ export async function tavilySearch(
         }));
 
       log.info(`[tavily-search] ${mapped.length} results for query: ${query}`);
+      if (tavilyKv && mapped.length > 0) {
+        await tavilyKv.put(cacheKey, JSON.stringify(mapped), { expirationTtl: CACHE_TTL_SECONDS });
+      }
       return mapped;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

@@ -7,8 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 # Scheduled triggers (runs on Cloudflare, no computer needed)
 [triggers]
 crons = [
-  "0 7 * * *",   # Ingest every morning at 7am UTC
-  "0 8 * * 3",   # Generate newsletter Wednesday 8am UTC
+  "0 7 * * 1-5", # Ingest weekday mornings at 7am UTC
   "0 8 * * 6",   # Generate newsletter Saturday 8am UTC
 ]
 
@@ -59,7 +58,7 @@ queue = "publish-queue"
 max_batch_size = 1
 max_batch_timeout = 30
 
-# R2 bucket for content storage (matches your current setup)
+# R2 bucket for content storage
 [[r2_buckets]]
 binding = "CONTENT_BUCKET"
 bucket_name = "ainewsletter"
@@ -74,117 +73,27 @@ id = "d858fcdf0fc84221908e17c523f05aa6"
 # - ANTHROPIC_API_KEY
 # - MISTRAL_API_KEY
 # - MOONSHOT_API_KEY
-# - EXA_API_KEY                (optional fallback)
+# - EXA_API_KEY
 # - TAVILY_API_KEY
 # - PARALLEL_API_KEY
-# - PARALLEL_MONITOR_RESEARCH_ID  (run setup-monitors.ts first)
-# - PARALLEL_MONITOR_STARTUP_ID   (run setup-monitors.ts first)
+# - PARALLEL_MONITOR_RESEARCH_ID
+# - PARALLEL_MONITOR_STARTUP_ID
 # - GHOST_ADMIN_API_KEY
 # - GHOST_API_URL
-# - BEEHIIV_API_KEY          (optional — wrangler secret put BEEHIIV_API_KEY)
-# - BEEHIIV_PUBLICATION_ID   (optional — wrangler secret put BEEHIIV_PUBLICATION_ID)
-# - IDEOGRAM_API_KEY         (optional — wrangler secret put IDEOGRAM_API_KEY)
-# - SURREALDB_URL            (wrangler secret put SURREALDB_URL)
-# - SURREALDB_NS             (wrangler secret put SURREALDB_NS)
-# - SURREALDB_DB             (wrangler secret put SURREALDB_DB)
-# - SURREALDB_USER           (wrangler secret put SURREALDB_USER)
-# - SURREALDB_PASS           (wrangler secret put SURREALDB_PASS)
+# - BEEHIIV_API_KEY
+# - BEEHIIV_PUBLICATION_ID
+# - IDEOGRAM_API_KEY             (optional)
+# - SURREALDB_URL
+# - SURREALDB_NS
+# - SURREALDB_DB
+# - SURREALDB_USER
+# - SURREALDB_PASS
 
-# Enable observability (logs)
+# Enable observability
 [observability]
 enabled = true
 head_sampling_rate = 1
 
 [observability.logs]
-enabled = true
-head_sampling_rate = 1
-
-# Production environment
-[env.production]
-name = "ainewsletter-ingest-prod"
-
-# Production: Scheduled triggers
-[env.production.triggers]
-crons = [
-  "0 7 * * *",   # Ingest every morning at 7am UTC
-  "0 8 * * 3",   # Generate Wednesday 8am UTC
-  "0 8 * * 6",   # Generate Saturday 8am UTC
-]
-
-# Production: Enable observability
-[env.production.observability]
-enabled = true
-head_sampling_rate = 1
-
-[env.production.observability.logs]
-enabled = true
-head_sampling_rate = 1
-
-[[env.production.queues.producers]]
-queue = "scrape-queue"
-binding = "SCRAPE_QUEUE"
-
-[[env.production.queues.producers]]
-queue = "evaluate-queue"
-binding = "EVALUATE_QUEUE"
-
-[[env.production.queues.producers]]
-queue = "upload-queue"
-binding = "UPLOAD_QUEUE"
-
-[[env.production.queues.producers]]
-queue = "generate-queue"
-binding = "GENERATE_QUEUE"
-
-[[env.production.queues.producers]]
-queue = "publish-queue"
-binding = "PUBLISH_QUEUE"
-
-[[env.production.queues.consumers]]
-queue = "scrape-queue"
-max_batch_size = 10
-max_batch_timeout = 30
-
-[[env.production.queues.consumers]]
-queue = "evaluate-queue"
-max_batch_size = 20
-max_batch_timeout = 30
-
-[[env.production.queues.consumers]]
-queue = "upload-queue"
-max_batch_size = 30
-max_batch_timeout = 30
-
-[[env.production.queues.consumers]]
-queue = "generate-queue"
-max_batch_size = 1
-max_batch_timeout = 60
-
-[[env.production.queues.consumers]]
-queue = "publish-queue"
-max_batch_size = 1
-max_batch_timeout = 30
-
-[[env.production.r2_buckets]]
-binding = "CONTENT_BUCKET"
-bucket_name = "ainewsletter"
-
-[[env.production.kv_namespaces]]
-binding = "INGEST_STATE"
-id = "d858fcdf0fc84221908e17c523f05aa6"
-
-# Development environment
-[env.dev]
-name = "ainewsletter-ingest-dev"
-
-[env.dev.triggers]
-crons = []  # Disable scheduled runs in dev
-
-# Dev: Enable observability
-[env.dev.observability]
-enabled = true
-head_sampling_rate = 1
-
-[env.dev.observability.logs]
 enabled = true
 head_sampling_rate = 1
