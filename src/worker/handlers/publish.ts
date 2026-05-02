@@ -221,7 +221,7 @@ async function publishToGhost(
           {
             title,
             mobiledoc,
-            status: 'draft',
+            status: 'published',
             custom_excerpt: preheader || null,
             tags: [{ name: 'Newsletter' }, { name: 'AI' }],
             ...(featureImageUrl ? { feature_image: featureImageUrl } : {}),

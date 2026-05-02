@@ -33,6 +33,7 @@ Port the AINewsletter pipeline into a branded **sustainability and solarpunk new
 | **Policy & Activism** | Climate legislation, international agreements, grassroots campaigns, victories |
 | **Culture** | Films, TV, documentaries, music, fiction, art with environmental or solarpunk themes |
 | **Community & Local Action** | Urban farming, mutual aid, repair cafes, permaculture, local resilience projects |
+| **Science & Research** | Peer-reviewed findings, environmental preprints, citizen science, ecology, climate data |
 
 ---
 
@@ -366,14 +367,15 @@ Replace both constants.
 
 **Selection rules:**
 
-1. **Pillar Coverage (strong preference, not hard rejection)**: Strongly prefer selections that span at least 3 of the 4 pillars (Green Tech, Policy/Activism, Culture, Community). If 3-pillar coverage is achievable with strong stories, require it. If the only way to reach 3 pillars is to select a weak or marginally relevant story, it is acceptable to run 2 stories from one pillar provided both are genuinely strong. Explain your reasoning in `chain_of_thought`.
+1. **Pillar Coverage (strong preference, not hard rejection)**: The newsletter runs 5 story slots, one per pillar (Green Tech, Policy/Activism, Culture, Community, Science/Research). Strongly prefer full coverage across all 5. If a pillar has no strong story in a given week, it is acceptable to run 2 stories from one pillar provided both are genuinely strong — but explain in `chain_of_thought`. Science/Research may be thinner in volume; do not pad it with weak stories.
 2. **Solutions Bias**: At least 2 stories must be solution-oriented — they show people, communities, or systems doing something, not just describing a problem.
 3. **Culture Required**: At least 1 story MUST come from the Culture pillar.
-4. **No Doom Loop**: Any story with `is_doom_loop: true` (flagged at evaluate stage) must not appear. Do not override this.
-5. **Source Diversity**: Maximum 1 story per publication or domain.
-6. **Geographic Diversity**: At least 1 story from outside the US/UK when possible. Strongly prefer Global South coverage when relevant.
-7. **Recency**: News and policy stories within 7 days. Culture features within 30 days. Community stories within 14 days.
-8. **Prefer Specificity**: Choose a story about a specific community garden over a generic "urban farming is growing" trend piece.
+4. **Science Required**: At least 1 story MUST come from the Science/Research pillar. Prioritize findings with clear real-world implications over incremental technical results. A preprint is acceptable if it carries institutional backing or credible co-authorship.
+5. **No Doom Loop**: Any story with `is_doom_loop: true` (flagged at evaluate stage) must not appear. Do not override this. Note: research findings with `hope_score` of 1–2 are still rejected — a study confirming disaster with no response pathway does not get a pass for being "scientific."
+6. **Source Diversity**: Maximum 1 story per publication or domain.
+7. **Geographic Diversity**: At least 1 story from outside the US/UK when possible. Strongly prefer Global South coverage when relevant.
+8. **Recency**: News and policy stories within 7 days. Culture features within 30 days. Community stories within 14 days. Science/Research: peer-reviewed papers within 30 days; preprints within 14 days.
+9. **Prefer Specificity**: Choose a story about a specific community garden over a generic "urban farming is growing" trend piece.
 
 ---
 
@@ -385,7 +387,7 @@ These are **new source types** with no equivalent in the AINewsletter codebase. 
 
 Mastodon's public hashtag timeline requires no authentication for federated instances — but unauthenticated calls to large instances like `mastodon.social` are aggressively rate-limited and may return cached/stale results.
 
-**Recommendation: generate a read-only access token for each instance you query.** Even though no user data is accessed, a token reliably bypasses cached public responses and avoids 429 errors during the automated weekly cron. Set `MASTODON_ACCESS_TOKEN_MASTODON_SOCIAL` and `MASTODON_ACCESS_TOKEN_SLRPNK_NET` as separate env vars — each instance issues its own token.
+**Recommendation: generate a read-only access token for each instance you query.** Even though no user data is accessed, a token reliably bypasses cached public responses and avoids 429 errors during the automated weekly cron. Set `MASTODON_ACCESS_TOKEN_SLRPNK_NET` and `MASTODON_ACCESS_TOKEN_KOLEKTIVA_SOCIAL` as separate env vars — each instance issues its own token.
 
 **API endpoint:**
 ```
@@ -393,10 +395,12 @@ GET https://{instance}/api/v1/timelines/tag/{hashtag}?limit=40
 Authorization: Bearer {token}    ← include if token available; omit if not
 ```
 
-**Instances to query:**
-- `mastodon.social` — general; largest Mastodon instance
-- `slrpnk.net` — dedicated solarpunk Mastodon instance (highest signal)
-- `kolektiva.social` — activism-focused instance
+**Instances to query (priority order):**
+- `slrpnk.net` — **primary.** Dedicated solarpunk Mastodon instance; highest signal-to-noise ratio. Query first and weight results higher.
+- `kolektiva.social` — **primary.** Activism-focused instance; strong policy and mutual aid signal.
+- `mastodon.social` — **deprioritized.** General-purpose firehose; low conversion rate expected due to volume and topic dilution. Query only if slrpnk.net + kolektiva.social yield fewer than 20 post-engagement-filter candidates in a daily run. Remove `MASTODON_ACCESS_TOKEN_MASTODON_SOCIAL` from required env vars — it is optional and low-priority.
+
+> **Why deprioritized:** mastodon.social is the largest Mastodon instance but has no topic focus. Hashtag timelines there are high-volume and noisy. Shadow ingest evaluation (§8) should confirm whether its post-filter conversion rate justifies the API calls. If conversion rate is below 5%, disable it entirely.
 
 **Hashtags to monitor:** `#solarpunk`, `#mutualaid`, `#permaculture`, `#righttorepair`, `#climateaction`, `#zerowaste`
 
@@ -585,7 +589,7 @@ Replace intro prompt. Structure:
 
 1. Open with a brief observation from the natural world or a seasonal note (1 sentence)
 2. 1-sentence setup: what this week's newsletter covers, broadly
-3. 4 story teasers — one sentence each, ordered: Tech → Policy → Culture → Community
+3. 5 story teasers — one sentence each, ordered: Tech → Policy → Science → Culture → Community
 4. 1-sentence closing hook: why this particular combination of stories matters this week
 
 No productivity framing, no ROI language, no "here's what you need to know to stay ahead."
@@ -651,15 +655,18 @@ Update section order, labels, and include social signal attribution:
 1. Subject line
 2. Pre-header teaser ("PLUS:" — same format as AINewsletter)
 3. Intro
-4. Story sections (4):
+4. Story sections (5):
    - Green Tech story
    - Policy/Activism story
+   - Science/Research story
    - Culture story
    - Community/Local story
 5. Green Pulse — 3 quick items (§4.14)
 6. Culture Picks — 3 media recommendations (§4.15)
 7. Footer
 ```
+
+> **Section ordering rationale:** Science/Research sits between Policy and Culture — after the "what's happening" stories (Tech, Policy) and before the "who we are" stories (Culture, Community). A research finding often bridges the two: it contextualizes the policy story above it and grounds the cultural story below it.
 
 Social-sourced items should include a `via @handle (Mastodon/Bluesky)` attribution in the section footer, similar to how the current newsletter credits sources.
 
@@ -752,10 +759,10 @@ RSS-sourced URLs do not need pre-flight — they come from known, vetted sources
 ## 6. New Environment Variables
 
 ```
-# Social ingest — Mastodon tokens (per-instance, optional but strongly recommended)
-MASTODON_ACCESS_TOKEN_MASTODON_SOCIAL=
-MASTODON_ACCESS_TOKEN_SLRPNK_NET=
-MASTODON_ACCESS_TOKEN_KOLEKTIVA_SOCIAL=
+# Social ingest — Mastodon tokens (per-instance, required for primary instances)
+MASTODON_ACCESS_TOKEN_SLRPNK_NET=          # Required — primary instance
+MASTODON_ACCESS_TOKEN_KOLEKTIVA_SOCIAL=    # Required — primary instance
+MASTODON_ACCESS_TOKEN_MASTODON_SOCIAL=     # Optional — deprioritized; omit unless shadow ingest shows value
 
 # Social engagement thresholds (tunable without code deploys)
 MASTODON_MIN_ENGAGEMENT=5
@@ -803,7 +810,7 @@ social_origin?: {
   post_url: string;            // canonical URL of the social post
   commentary?: string;         // original post text if keep_as_signal: true
 };
-pillar?: "green-tech" | "policy" | "culture" | "community";   // set during selection
+pillar?: "green-tech" | "policy" | "culture" | "community" | "research";   // set during selection
 hope_score?: number;           // 1-10 from evaluate-news.ts
 ```
 
@@ -846,19 +853,19 @@ Solarpunk Magazine, Low-Tech Magazine, ESSOAr API, slrpnk.net API, Atmos Magazin
 
 **Phase 2 — Evaluation layer**
 9. **`evaluate-news.ts`** — update relevance prompt; add `hope_score` output field; wire hard rejection at `hope_score ≤ 2`.
-10. **`evaluate.ts`** — add `"culture"` and `"social"` to `detectContentType`; add `social_origin` field propagation.
+10. **`evaluate.ts`** — add `"culture"`, `"research"`, and `"social"` to `detectContentType`; add `social_origin` field propagation. Research items (ESSOAr, bioRxiv, arXiv, NGO reports) route to `evaluate-research.ts`.
 11. **`evaluate-culture.ts`** — new prompt file; wire into evaluation branching.
 12. **`evaluate-social.ts`** — new module; implement double-pass hydration; maintain `social_origin` link.
-13. **`evaluate-research.ts`** — update scoring criteria and source type list.
-14. **`storage/`** — update metadata serializer to handle `social_origin`, `pillar`, `hope_score` fields.
+13. **`evaluate-research.ts`** — promote to first-class evaluator (was previously referenced but not a named branch). Update scoring criteria (Novelty, Climate/ecology relevance, Policy/practical implications, Accessibility). Wire `pillar: "research"` tag onto passing items. Note: `hope_score` still applies — reject findings that are purely catastrophic with no response pathway.
+14. **`storage/`** — update metadata serializer to handle `social_origin`, `pillar`, `hope_score` fields. Ensure `"research"` is a valid `pillar` value.
 
 **Phase 3 — Generation layer**
-15. **`select-stories.ts`** — new selection criteria. Test on an ingested week; review pillar coverage.
-16. **`write-section.ts`** — new structure, tone, blacklist/preferred vocabulary.
-17. **`write-intro.ts`**, **`subject-line.ts`** — tune after section writing is confirmed.
+15. **`select-stories.ts`** — new selection criteria for 5 pillars. Test on an ingested week; verify each pillar slot fills. Watch for Science/Research volume gaps — if preprint ingest is thin, lower `evaluate-research.ts` threshold temporarily or pull from NGO report sources.
+16. **`write-section.ts`** — new structure, tone, blacklist/preferred vocabulary. Science/Research stories use the standard 4-part template (The Story / Why It Matters / The Bigger Picture / Take Action or Go Deeper) — no separate template needed, but the writer prompt should be told the story's `pillar` so it can calibrate jargon level. Research stories require extra care on accessibility.
+17. **`write-intro.ts`**, **`subject-line.ts`** — tune after section writing is confirmed. Intro now has 5 teasers (Tech → Policy → Science → Culture → Community).
 18. **`green-pulse.ts`** — rename and retune `ai-discoveries.ts`.
 19. **`culture-picks.ts`** — rename and retune `ai-for-good.ts`.
-20. **`assemble.ts`** — new section order, social attribution rendering.
+20. **`assemble.ts`** — new 5-story section order, social attribution rendering.
 
 **Phase 4 — Image and identity**
 21. **`src/utils/imageProcessor.ts`** — add `SOLARPUNK_STYLE_PRESET` (see §9.1).
