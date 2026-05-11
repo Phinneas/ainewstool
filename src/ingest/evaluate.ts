@@ -50,31 +50,30 @@ export async function evaluateContentRelevance(
   return evaluateNewsContent(content);
 }
 
+function parseJson<T>(response: string): T | null {
+  // Try direct parse first (JSON mode returns clean JSON), then regex extraction
+  try { return JSON.parse(response) as T; } catch { /* fallthrough */ }
+  try {
+    const m = response.match(/\{[\s\S]*?\}/);
+    if (m) return JSON.parse(m[0]) as T;
+  } catch { /* fallthrough */ }
+  return null;
+}
+
 async function evaluateResearchContent(content: string): Promise<EvaluationResult> {
   const prompt = `${EVALUATE_RESEARCH_PROMPT}\n\n---\n${content}`;
 
-  // Use mistral-small: faster/cheaper for structured scoring
-  const response = await chatWithMistral({ prompt, maxTokens: 512, model: "mistral-small" });
+  const response = await chatWithMistral({ prompt, maxTokens: 512, model: "mistral-small-latest" });
 
-  try {
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return { isRelevant: false, reasoning: "Failed to parse", score: 0 };
+  const parsed = parseJson<{ score?: number; headline?: string; tldr?: string }>(response);
+  if (!parsed) return { isRelevant: false, reasoning: "Failed to parse LLM response", score: 0 };
 
-    const parsed = JSON.parse(jsonMatch[0]) as {
-      score?: number;
-      headline?: string;
-      tldr?: string;
-    };
-    const score = typeof parsed.score === "number" ? parsed.score : 0;
-
-    return {
-      isRelevant: score >= 6,
-      reasoning: parsed.tldr ?? parsed.headline ?? "",
-      score,
-    };
-  } catch {
-    return { isRelevant: false, reasoning: "Failed to parse LLM response", score: 0 };
-  }
+  const score = typeof parsed.score === "number" ? parsed.score : 0;
+  return {
+    isRelevant: score >= 4,
+    reasoning: parsed.tldr ?? parsed.headline ?? "",
+    score,
+  };
 }
 
 async function evaluateNewsContent(content: string): Promise<EvaluationResult> {
@@ -82,21 +81,13 @@ async function evaluateNewsContent(content: string): Promise<EvaluationResult> {
 
   const response = await chatWithMistral({ prompt, maxTokens: 2048 });
 
-  try {
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return { isRelevant: false, reasoning: "Failed to parse" };
+  const parsed = parseJson<{ chainOfThought?: string; is_relevant_content?: boolean }>(response);
+  if (!parsed) return { isRelevant: false, reasoning: "Failed to parse LLM response" };
 
-    const parsed = JSON.parse(jsonMatch[0]) as {
-      chainOfThought?: string;
-      is_relevant_content?: boolean;
-    };
-    return {
-      isRelevant: parsed.is_relevant_content ?? false,
-      reasoning: parsed.chainOfThought ?? "",
-    };
-  } catch {
-    return { isRelevant: false, reasoning: "Failed to parse LLM response" };
-  }
+  return {
+    isRelevant: parsed.is_relevant_content ?? false,
+    reasoning: parsed.chainOfThought ?? "",
+  };
 }
 
 // ---------------------------------------------------------------------------

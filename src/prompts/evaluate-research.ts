@@ -2,7 +2,7 @@
  * Prompt for scoring an AI research paper for newsletter inclusion.
  * Append the paper content after a `---` separator before sending to the LLM.
  *
- * Acceptance threshold: score >= 6
+ * Acceptance threshold: score >= 4
  */
 export const EVALUATE_RESEARCH_PROMPT = `You are evaluating an AI research paper for a technically curious but non-academic newsletter audience.
 

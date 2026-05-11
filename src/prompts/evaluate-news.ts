@@ -2,7 +2,9 @@
  * Prompt for evaluating whether a fetched web page is relevant to the AI newsletter.
  * Append the raw content after the trailing `---` separator before sending to the LLM.
  */
-export const EVALUATE_NEWS_PROMPT = `Given content fetched from a web page, analyze this content to determine if it is a full piece of content that would be considered relevant to our AI Newsletter which features news stories, tutorials, research, and other interesting happenings in the tech and AI space.
+export const EVALUATE_NEWS_PROMPT = `Given content fetched from a web page, analyze this content to determine if it is relevant to our AI Newsletter which features news stories, tutorials, research, and other interesting happenings in the tech and AI space.
+
+Be reasonably inclusive - if the content has some value for AI/tech practitioners or enthusiasts, lean toward accepting it.
 
 ## What IS relevant:
 - AI/ML news, announcements, product launches, and industry developments
@@ -12,11 +14,11 @@ export const EVALUATE_NEWS_PROMPT = `Given content fetched from a web page, anal
 - AI-adjacent technology (cloud infrastructure for AI, GPU/chip developments, developer tools)
 
 ## What is NOT relevant:
-- Job postings or hiring announcements
-- Content centered around industries unrelated to AI/tech
-- Generic marketing content or product pages with no substantive information
-- Content that is too short or thin to be useful (less than a few paragraphs)
-- Listicles of AI tools with no analysis or insight
+- Pure job postings or hiring announcements (tutorials about AI careers are OK)
+- Content completely unrelated to AI/tech/software
+- Marketing pages with zero technical content or insights
+- Content that is extremely short (less than a paragraph)
+- Pure spam or promotional content with no informational value
 
 You must respond with valid JSON in this exact format:
 {

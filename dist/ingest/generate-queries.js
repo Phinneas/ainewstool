@@ -102,3 +102,71 @@ function getDefaultQueries() {
         "OpenAI Anthropic Google AI major announcements today",
     ];
 }
+// ---------------------------------------------------------------------------
+// Category-based query banks
+// ---------------------------------------------------------------------------
+export const RESEARCH_QUERIES = [
+    "AI research preprint benchmark evaluation new paper",
+    "machine learning model training technique novel approach arxiv",
+    "LLM architecture innovation research paper 2024 2025",
+    "AI infrastructure scaling distributed training research",
+    "model interpretability explainability research paper",
+    "AI evaluation benchmark leaderboard new results",
+];
+export const STARTUP_QUERIES = [
+    "AI startup tool launch -OpenAI -Google -Meta -Microsoft -Amazon -Apple",
+    "AI developer tool new release indie small team -OpenAI -Google",
+    "AI framework launch new product -Microsoft -Amazon -Meta",
+    "new AI company product launch funding -OpenAI -Anthropic -Google",
+    "AI tool release open source indie developer -big tech",
+    "small team AI project launch product hunt show hn",
+];
+export const ENTERPRISE_QUERIES = [
+    "enterprise AI adoption deployment case study",
+    "AI productivity ROI business metrics study",
+    "AI workflow automation business integration",
+];
+export const POLICY_QUERIES = [
+    "AI regulation policy government announcement",
+    "AI governance framework legislation proposal",
+    "AI safety regulation compliance news",
+    "AI policy impact industry technology sector",
+    "AI regulation EU US China development",
+];
+export const CONSUMER_QUERIES = [
+    "consumer AI product app new release launch",
+    "personal AI assistant productivity tool launch",
+    "AI mobile app new release features",
+];
+/**
+ * Generate category-based search queries routed to the appropriate engine.
+ */
+export function generateCategoryQueries() {
+    return [
+        {
+            category: "research",
+            engine: "parallel-search",
+            queries: RESEARCH_QUERIES,
+        },
+        {
+            category: "startup",
+            engine: "parallel-findall",
+            queries: STARTUP_QUERIES,
+        },
+        {
+            category: "enterprise",
+            engine: "tavily",
+            queries: ENTERPRISE_QUERIES,
+        },
+        {
+            category: "policy",
+            engine: "parallel-search",
+            queries: POLICY_QUERIES,
+        },
+        {
+            category: "consumer",
+            engine: "tavily",
+            queries: CONSUMER_QUERIES,
+        },
+    ];
+}

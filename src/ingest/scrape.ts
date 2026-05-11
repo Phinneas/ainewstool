@@ -1,8 +1,9 @@
 /**
  * Multi-tier web scraping with automatic fallbacks:
  * 1. Jina Reader (primary) - free, no API key, returns markdown
- * 2. Native fetch + HTML extraction (fallback) - works everywhere
- * 3. Return null (final)
+ * 2. Exa (secondary) - paid, reliable on JS-heavy and blocked sites
+ * 3. Native fetch + HTML extraction (fallback) - works everywhere
+ * 4. Return null (final)
  */
 
 import { log } from "../logger.js";
@@ -10,20 +11,33 @@ import type { ScrapeResult } from "../storage/types.js";
 
 const MAX_TIMEOUT_MS = 30000; // 30 seconds max per scrape
 const JINA_READER_URL = "https://r.jina.ai/";
+const EXA_CONTENTS_URL = "https://api.exa.ai/contents";
 
 /**
  * Scrape a URL using multiple fallback strategies.
  * Returns null if all methods fail.
  */
-export async function scrapeUrl(url: string, _apiKey?: string): Promise<ScrapeResult | null> {
-  // Try Jina Reader first (most reliable, returns clean markdown)
+export async function scrapeUrl(url: string, apiKey?: string): Promise<ScrapeResult | null> {
+  // Try Jina Reader first (free, returns clean markdown)
   const jinaResult = await tryJinaReader(url);
   if (jinaResult) {
     log.debug(`Jina Reader success`, { url });
     return jinaResult;
   }
 
-  log.warn(`Jina Reader failed, trying native fetch`, { url });
+  log.warn(`Jina Reader failed, trying Exa`, { url });
+
+  // Try Exa if API key is available
+  if (apiKey) {
+    const exaResult = await tryExa(url, apiKey);
+    if (exaResult) {
+      log.debug(`Exa success`, { url });
+      return exaResult;
+    }
+    log.warn(`Exa failed, trying native fetch`, { url });
+  } else {
+    log.warn(`No Exa API key, trying native fetch`, { url });
+  }
 
   // Fallback to native HTML fetch + extraction
   const nativeResult = await tryNativeFetch(url);
@@ -88,6 +102,59 @@ async function tryJinaReader(url: string): Promise<ScrapeResult | null> {
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     log.debug(`Jina Reader error`, { error: errorMsg, url });
+    return null;
+  }
+}
+
+/**
+ * Exa - cheaper and reliable paid scraper.
+ * Uses the /contents endpoint which returns clean text for a given URL.
+ */
+async function tryExa(url: string, apiKey: string): Promise<ScrapeResult | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), MAX_TIMEOUT_MS);
+
+    const response = await fetch(EXA_CONTENTS_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+      },
+      body: JSON.stringify({ ids: [url], text: true }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      log.debug(`Exa HTTP error`, { status: response.status, url });
+      return null;
+    }
+
+    const data = (await response.json()) as {
+      results?: Array<{ url: string; title?: string; text?: string; image?: string }>;
+    };
+
+    const result = data.results?.[0];
+    if (!result?.text || result.text.length < 100) {
+      log.debug(`Exa returned empty/short content`, { url });
+      return null;
+    }
+
+    const title = result.title ?? extractTitleFromUrl(url);
+    const imageUrls = result.image ? [result.image] : [];
+
+    return {
+      content: result.text,
+      mainContentImageUrls: imageUrls,
+      rawHtml: "",
+      links: [],
+      metadata: { url, title },
+    };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    log.debug(`Exa error`, { error: errorMsg, url });
     return null;
   }
 }

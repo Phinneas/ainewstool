@@ -1,5 +1,5 @@
 /**
- * Stage 2: Scrape URLs via Firecrawl
+ * Stage 2: Scrape URLs via Jina → Exa → native fetch
  * Consumes messages from scrape-queue, enqueues to evaluate-queue
  */
 
@@ -36,7 +36,7 @@ export async function handleScrapeQueue(batch: MessageBatch<ScrapeMessage>, env:
           continue;
         }
 
-        const result = await scrapeUrl(itemData.url, env.FIRECRAWL_API_KEY);
+        const result = await scrapeUrl(itemData.url, env.EXA_API_KEY);
 
         if (!result || !result.content) {
           batchLog.warn('scrape failed', { title: itemData.title, url: itemData.url });

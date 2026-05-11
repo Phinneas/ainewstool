@@ -10,7 +10,7 @@
  */
 
 import { Env } from '../index.js';
-import { evaluateContentRelevance } from '../../../src/ingest/evaluate.js';
+import { evaluateContentRelevance, detectContentType } from '../../../src/ingest/evaluate.js';
 import { extractExternalSources } from '../../../src/ingest/extract-sources.js';
 import { apiKeys } from '../../../src/llm/api-keys.js';
 import { createSurrealClient } from '../lib/surreal.js';
@@ -91,7 +91,9 @@ export async function handleEvaluateQueue(batch: MessageBatch<EvaluateMessage>, 
         }
         const scrapeResult = JSON.parse(scrapeData);
 
-        const evaluation = await evaluateContentRelevance(scrapeResult.content);
+        // Detect content type for proper evaluation
+        const contentType = detectContentType(item);
+        const evaluation = await evaluateContentRelevance(scrapeResult.content, contentType);
 
         // ── Relevance score: float not binary ─────────────────────────────
         // Research items carry a 1–10 score from the LLM; normalize to 0–1.

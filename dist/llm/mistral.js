@@ -10,7 +10,7 @@ function getClient() {
     return new Mistral({ apiKey });
 }
 export const mistralClient = {
-    async chat({ system, prompt, maxTokens = 4096, model = "mistral-medium" }) {
+    async chat({ system, prompt, maxTokens = 4096, model = "mistral-small-latest" }) {
         const messages = [];
         if (system)
             messages.push({ role: "system", content: system });
@@ -19,6 +19,8 @@ export const mistralClient = {
             model: model,
             messages,
             maxTokens,
+            temperature: 0.0,
+            responseFormat: { type: "json_object" },
         });
         return response.choices?.[0]?.message?.content ?? "";
     },

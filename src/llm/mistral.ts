@@ -13,7 +13,7 @@ function getClient(): Mistral {
 }
 
 export const mistralClient: LLMClient = {
-  async chat({ system, prompt, maxTokens = 4096, model = "mistral-medium" }) {
+  async chat({ system, prompt, maxTokens = 4096, model = "mistral-small-latest" }) {
     const messages: Array<{ role: "system" | "user"; content: string }> = [];
     if (system) messages.push({ role: "system", content: system });
     messages.push({ role: "user", content: prompt });
@@ -23,6 +23,7 @@ export const mistralClient: LLMClient = {
       messages,
       maxTokens,
       temperature: 0.0,
+      responseFormat: { type: "json_object" },
     });
 
     return response.choices?.[0]?.message?.content as string ?? "";
