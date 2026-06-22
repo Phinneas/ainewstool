@@ -19,10 +19,17 @@ export async function selectTopStories(
   contentItems: Array<{ identifier: string; title: string; sourceName: string; type: string; content: string; externalSourceUrls: string }>,
   previousNewsletter?: string
 ): Promise<StorySelectionResult> {
-  const contentText = contentItems
+  // Limit items and truncate content to avoid token limit
+  const limitedItems = contentItems.slice(0, 15);
+  const contentText = limitedItems
     .map(
-      (item) =>
-        `<${item.identifier}>\n---\nidentifier: ${item.identifier}\nfriendlyType: ${item.type}\nsourceName: ${item.sourceName}\nexternalSourceUrls: ${item.externalSourceUrls}\n---\n\n${item.content}\n</${item.identifier}>`
+      (item) => {
+        // Truncate content to ~2000 chars (roughly 500 tokens) per item
+        const truncatedContent = item.content.length > 2000
+          ? item.content.substring(0, 2000) + "...[content truncated]"
+          : item.content;
+        return `<${item.identifier}>\n---\nidentifier: ${item.identifier}\nfriendlyType: ${item.type}\nsourceName: ${item.sourceName}\nexternalSourceUrls: ${item.externalSourceUrls}\n---\n\n${truncatedContent}\n</${item.identifier}>`;
+      }
     )
     .join("\n\n");
 
