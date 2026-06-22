@@ -54,7 +54,7 @@ function markdownToHtml(md: string): string {
     .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#003153;">$1</a>');
 
   // Handle paragraphs - process line by line and group properly
   const lines = html.split('\n');
@@ -120,6 +120,23 @@ function parseNewsletter(message: PublishMessage): ParsedNewsletter {
     : title;
 
   return { title, preheader, topHeadline, bodyMarkdown, html };
+}
+
+/**
+ * Build a "Share on LinkedIn" button that links to LinkedIn's share dialog
+ * pre-filled with the published article's URL.
+ */
+function buildLinkedInShareButton(postUrl: string): string {
+  const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(postUrl)}`;
+  return (
+    '<div style="margin-top:32px;text-align:center;">' +
+    `<a href="${shareUrl}" target="_blank" rel="noopener noreferrer" ` +
+    'style="display:inline-block;background-color:#003153;color:#ffffff;' +
+    'padding:12px 24px;border-radius:6px;font-weight:600;text-decoration:none;' +
+    "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">" +
+    'Share on LinkedIn</a>' +
+    '</div>'
+  );
 }
 
 /**
@@ -235,10 +252,51 @@ async function publishToGhost(
       throw new Error(`Ghost API error ${response.status}: ${errorText}`);
     }
 
-    const data = (await response.json()) as { posts: Array<{ id: string; url: string }> };
+    const data = (await response.json()) as {
+      posts: Array<{ id: string; url: string; updated_at: string }>;
+    };
     const post = data.posts[0];
 
     log.info('ghost draft created', { post_id: post.id, post_url: post.url });
+
+    // Append a "Share on LinkedIn" button now that we know the public URL,
+    // then patch the post. A failure here must not fail the publish.
+    try {
+      const shareButtonHtml = buildLinkedInShareButton(post.url);
+      const updatedMobiledoc = JSON.stringify({
+        version: '0.3.1',
+        atoms: [],
+        cards: [['html', { html: html + shareButtonHtml }]],
+        markups: [],
+        sections: [[10, 0]],
+      });
+
+      const patchResponse = await fetch(`${url}${post.id}/`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Ghost ${jwt}`,
+          'Accept-Version': 'v5.0',
+        },
+        body: JSON.stringify({
+          posts: [{ mobiledoc: updatedMobiledoc, updated_at: post.updated_at }],
+        }),
+      });
+
+      if (!patchResponse.ok) {
+        const errorText = await patchResponse.text();
+        log.warn('ghost share-button update failed — post still published', {
+          status: patchResponse.status,
+          error: errorText,
+        });
+      } else {
+        log.info('ghost share button added', { post_id: post.id });
+      }
+    } catch (patchError) {
+      log.warn('ghost share-button update threw — post still published', {
+        error: patchError instanceof Error ? patchError.message : String(patchError),
+      });
+    }
 
     await env.INGEST_STATE.put(dedupKey, JSON.stringify({
       postId: post.id,
