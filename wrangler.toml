@@ -8,6 +8,7 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = [
   "0 7 * * 1-5", # Ingest weekday mornings at 7am UTC
+  "0 8 * * 3",   # Generate newsletter Wednesday 8am UTC
   "0 8 * * 6",   # Generate newsletter Saturday 8am UTC
 ]
 
