@@ -24,6 +24,8 @@ export interface Env {
   // Storage
   CONTENT_BUCKET: R2Bucket;
   INGEST_STATE: KVNamespace;
+  /** mymcpshelf's D1 `external_posts` table — publish target for finished issues. */
+  MYMCPSHELF_DB: D1Database;
 
   // Secrets
   FIRECRAWL_API_KEY: string;
@@ -37,11 +39,11 @@ export interface Env {
   PARALLEL_MONITOR_STARTUP_ID?: string;
   REDDIT_CLIENT_ID?: string;
   REDDIT_CLIENT_SECRET?: string;
-  GHOST_ADMIN_API_KEY: string;
-  GHOST_API_URL: string;
   BEEHIIV_API_KEY?: string;
   BEEHIIV_PUBLICATION_ID?: string;
   IDEOGRAM_API_KEY?: string;
+  /** Optional — header images for mymcpshelf D1 posts via Pexels. */
+  PEXELS_API_KEY?: string;
 
   // SurrealDB
   SURREALDB_URL?: string;
@@ -86,10 +88,10 @@ export default {
           listKvByPrefix(env.INGEST_STATE, 'db-fail:', 20),
         ]);
 
-        // Most recent newsletter publish info
-        const ghostList = await env.INGEST_STATE.list({ prefix: 'published:ghost:', limit: 3 });
+        // Most recent newsletter publish info (mymcpshelf D1 posts + Beehiiv drafts)
+        const shelfList = await env.INGEST_STATE.list({ prefix: 'published:mymcpshelf:', limit: 3 });
         const recentPublished = await Promise.all(
-          ghostList.keys.map(k => env.INGEST_STATE.get(k.name, 'json'))
+          shelfList.keys.map(k => env.INGEST_STATE.get(k.name, 'json'))
         );
 
         const status = {

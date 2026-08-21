@@ -94,8 +94,10 @@ const mockEnv: Env = {
   MOONSHOT_API_KEY: process.env.MOONSHOT_API_KEY || '',
   REDDIT_CLIENT_ID: process.env.REDDIT_CLIENT_ID,
   REDDIT_CLIENT_SECRET: process.env.REDDIT_CLIENT_SECRET,
-  GHOST_ADMIN_API_KEY: process.env.GHOST_ADMIN_API_KEY || '',
-  GHOST_API_URL: process.env.GHOST_API_URL || '',
+  MYMCPSHELF_DB: {
+    prepare: () => ({ bind: () => ({ run: async () => ({ success: true }) }) }),
+  } as any,
+  PEXELS_API_KEY: process.env.PEXELS_API_KEY,
 };
 
 async function main() {

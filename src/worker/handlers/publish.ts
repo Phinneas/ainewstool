@@ -1,15 +1,18 @@
 /**
- * Stage 6: Publish newsletter to Ghost CMS and Beehiiv as drafts
+ * Stage 6: Publish newsletter to mymcpshelf.com (D1) and Beehiiv as a draft
  * Consumes messages from publish-queue
  *
- * Takes the assembled newsletter markdown, converts it to HTML,
- * and creates drafts in both Ghost and Beehiiv for review before sending.
- * A failure in one destination does not block the other.
+ * Takes the assembled newsletter markdown, converts it to HTML, writes it as
+ * a row in mymcpshelf's D1 `external_posts` table (cross-bound, no git/GitHub
+ * involved), and creates a Beehiiv draft. A failure in one destination does
+ * not block the other.
+ *
+ * Ghost is retired (brainscriblr.world lapsed) — the site target is now
+ * mymcpshelf's D1 `external_posts`, which the site reads at request time and
+ * surfaces under /blog?track=ai-field-notes and /rss/ai-field-notes.xml.
  */
 
 import { Env } from '../index.js';
-import { generateHeaderImage } from '../lib/headerImage.js';
-import { uploadImageToGhost } from '../lib/ghostImageUpload.js';
 import { Logger, PipelineMetrics } from '../lib/logger.js';
 
 interface PublishMessage {
@@ -29,7 +32,7 @@ interface ParsedNewsletter {
 }
 
 /**
- * Minimal markdown-to-HTML conversion for Ghost and Beehiiv body content.
+ * Minimal markdown-to-HTML conversion for the site and Beehiiv body content.
  */
 function markdownToHtml(md: string): string {
   // First pass: convert headers
@@ -54,7 +57,7 @@ function markdownToHtml(md: string): string {
     .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#003153;">$1</a>');
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
   // Handle paragraphs - process line by line and group properly
   const lines = html.split('\n');
@@ -95,7 +98,7 @@ function markdownToHtml(md: string): string {
 
 /**
  * Parse newsletter markdown into title, preheader, and body HTML.
- * Shared by both Ghost and Beehiiv publish functions.
+ * Shared by both the site and Beehiiv publish functions.
  */
 function parseNewsletter(message: PublishMessage): ParsedNewsletter {
   const lines = message.newsletter.split('\n');
@@ -123,195 +126,86 @@ function parseNewsletter(message: PublishMessage): ParsedNewsletter {
 }
 
 /**
- * Build a "Share on LinkedIn" button that links to LinkedIn's share dialog
- * pre-filled with the published article's URL.
+ * Look up a header image via Pexels search (topHeadline as the query).
+ * No attribution required for use, unlike Unsplash. Returns null on any
+ * failure or missing key — image is optional, never blocks publish.
  */
-function buildLinkedInShareButton(postUrl: string): string {
-  const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(postUrl)}`;
-  return (
-    '<div style="margin-top:32px;text-align:center;">' +
-    `<a href="${shareUrl}" target="_blank" rel="noopener noreferrer" ` +
-    'style="display:inline-block;background-color:#003153;color:#ffffff;' +
-    'padding:12px 24px;border-radius:6px;font-weight:600;text-decoration:none;' +
-    "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">" +
-    'Share on LinkedIn</a>' +
-    '</div>'
-  );
-}
-
-/**
- * Create a Ghost Admin API JWT token.
- * Ghost Admin API keys are in "id:secret" format where secret is hex-encoded.
- */
-async function createGhostJwt(adminKey: string): Promise<string> {
-  const [id, secret] = adminKey.split(':');
-  if (!id || !secret) {
-    throw new Error('Invalid Ghost Admin API key format — expected id:secret');
+async function fetchHeaderImage(query: string, apiKey: string | undefined): Promise<string | null> {
+  if (!apiKey) return null;
+  try {
+    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`;
+    const response = await fetch(url, { headers: { Authorization: apiKey } });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { photos: Array<{ src: { large: string } }> };
+    return data.photos[0]?.src.large ?? null;
+  } catch {
+    return null;
   }
+}
 
-  const now = Math.floor(Date.now() / 1000);
-  const header = { alg: 'HS256', kid: id, typ: 'JWT' };
-  const payload = { iat: now, exp: now + 300, aud: '/admin/' };
-
-  const encode = (obj: object) =>
-    btoa(JSON.stringify(obj))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-
-  const headerB64 = encode(header);
-  const payloadB64 = encode(payload);
-  const signingInput = `${headerB64}.${payloadB64}`;
-
-  const secretBytes = new Uint8Array(
-    secret.match(/.{1,2}/g)!.map((b) => parseInt(b, 16))
-  );
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    secretBytes,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-
-  const signature = await crypto.subtle.sign(
-    'HMAC',
-    cryptoKey,
-    new TextEncoder().encode(signingInput)
-  );
-
-  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-
-  return `${signingInput}.${sigB64}`;
+/** Astro reserves the filename/row key as the slug; keep it URL-safe and stable. */
+function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
 }
 
 /**
- * Publish to Ghost CMS as a draft.
+ * Publish to mymcpshelf.com by writing directly into its D1 `external_posts`
+ * table (cross-bound — see MYMCPSHELF_DB in wrangler.toml). No git or GitHub
+ * API involved; the site reads this table at request time.
  * Returns true on success, false on failure (failure is logged to KV).
  */
-async function publishToGhost(
+async function publishToMymcpshelf(
   message: PublishMessage,
   parsed: ParsedNewsletter,
-  env: Env,
-  featureImageUrl: string | null = null
+  env: Env
 ): Promise<boolean> {
-  const log = new Logger('stage-6:ghost').withContext(message.generateId);
-  const { title, preheader, html } = parsed;
+  const log = new Logger('stage-6:mymcpshelf').withContext(message.generateId);
+  const { title, preheader, topHeadline, bodyMarkdown } = parsed;
 
-  const dedupKey = `published:ghost:${message.generateId}`;
-  const legacyKey = `published:${message.generateId}`;
-  const [already, alreadyLegacy] = await Promise.all([
-    env.INGEST_STATE.get(dedupKey),
-    env.INGEST_STATE.get(legacyKey),
-  ]);
-  if (already || alreadyLegacy) {
+  const dedupKey = `published:mymcpshelf:${message.generateId}`;
+  const already = await env.INGEST_STATE.get(dedupKey);
+  if (already) {
     log.info('already published — skipping');
     return true;
   }
 
+  const slug = slugify(title);
+  const image = await fetchHeaderImage(topHeadline, env.PEXELS_API_KEY);
+
   try {
-    const mobiledoc = JSON.stringify({
-      version: '0.3.1',
-      atoms: [],
-      cards: [['html', { html }]],
-      markups: [],
-      sections: [[10, 0]],
-    });
+    log.debug('inserting into mymcpshelf D1', { slug, body_chars: bodyMarkdown.length, has_image: !!image });
 
-    log.debug('posting to ghost', { body_chars: html.length });
+    await env.MYMCPSHELF_DB.prepare(
+      `INSERT INTO external_posts (slug, track, title, description, body_markdown, author, image, published_at)
+       VALUES (?, 'ai-field-notes', ?, ?, ?, 'Chester Beard', ?, ?)
+       ON CONFLICT(slug) DO UPDATE SET
+         title = excluded.title,
+         description = excluded.description,
+         body_markdown = excluded.body_markdown,
+         image = excluded.image,
+         published_at = excluded.published_at`
+    ).bind(slug, title, preheader || topHeadline, bodyMarkdown, image, new Date().toISOString()).run();
 
-    const jwt = await createGhostJwt(env.GHOST_ADMIN_API_KEY);
-    const url = `${env.GHOST_API_URL}/ghost/api/admin/posts/`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Ghost ${jwt}`,
-        'Accept-Version': 'v5.0',
-      },
-      body: JSON.stringify({
-        posts: [
-          {
-            title,
-            mobiledoc,
-            status: 'published',
-            custom_excerpt: preheader || null,
-            tags: [{ name: 'Newsletter' }, { name: 'AI' }],
-            ...(featureImageUrl ? { feature_image: featureImageUrl } : {}),
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Ghost API error ${response.status}: ${errorText}`);
-    }
-
-    const data = (await response.json()) as {
-      posts: Array<{ id: string; url: string; updated_at: string }>;
-    };
-    const post = data.posts[0];
-
-    log.info('ghost draft created', { post_id: post.id, post_url: post.url });
-
-    // Append a "Share on LinkedIn" button now that we know the public URL,
-    // then patch the post. A failure here must not fail the publish.
-    try {
-      const shareButtonHtml = buildLinkedInShareButton(post.url);
-      const updatedMobiledoc = JSON.stringify({
-        version: '0.3.1',
-        atoms: [],
-        cards: [['html', { html: html + shareButtonHtml }]],
-        markups: [],
-        sections: [[10, 0]],
-      });
-
-      const patchResponse = await fetch(`${url}${post.id}/`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Ghost ${jwt}`,
-          'Accept-Version': 'v5.0',
-        },
-        body: JSON.stringify({
-          posts: [{ mobiledoc: updatedMobiledoc, updated_at: post.updated_at }],
-        }),
-      });
-
-      if (!patchResponse.ok) {
-        const errorText = await patchResponse.text();
-        log.warn('ghost share-button update failed — post still published', {
-          status: patchResponse.status,
-          error: errorText,
-        });
-      } else {
-        log.info('ghost share button added', { post_id: post.id });
-      }
-    } catch (patchError) {
-      log.warn('ghost share-button update threw — post still published', {
-        error: patchError instanceof Error ? patchError.message : String(patchError),
-      });
-    }
+    log.info('mymcpshelf post published', { slug });
 
     await env.INGEST_STATE.put(dedupKey, JSON.stringify({
-      postId: post.id,
-      postUrl: post.url,
+      slug,
       title,
       timestamp: Date.now(),
     }), { expirationTtl: 60 * 60 * 24 * 30 });
 
     return true;
   } catch (error) {
-    log.error('ghost publish failed', {
+    log.error('mymcpshelf publish failed', {
       error: error instanceof Error ? error.message : String(error),
     });
     await env.INGEST_STATE.put(
-      `error:ghost:${message.generateId}`,
+      `error:mymcpshelf:${message.generateId}`,
       JSON.stringify({
         error: error instanceof Error ? error.message : String(error),
         timestamp: Date.now(),
@@ -420,53 +314,38 @@ export async function handlePublishQueue(
 
     const parsed = parseNewsletter(message);
 
-    // Generate Satori header image once — shared by Ghost (feature_image) and Beehiiv (thumbnail_url)
+    // Pexels header image (if key present) — shared by the site post and the Beehiiv draft.
     let featureImageUrl: string | null = null;
     try {
-      const dateLabel = message.dates[0] ?? new Date().toISOString().slice(0, 10);
-      const pngBytes = await generateHeaderImage({
-        newsletterName: 'BrainScriblr',
-        date: dateLabel,
-        topHeadline: parsed.topHeadline,
-        kv: env.INGEST_STATE,
-      });
-
-      if (pngBytes) {
-        const jwt = await createGhostJwt(env.GHOST_ADMIN_API_KEY);
-        const filename = `header-${message.generateId}.png`;
-        featureImageUrl = await uploadImageToGhost(pngBytes, filename, jwt, env.GHOST_API_URL);
-        if (featureImageUrl) {
-          pubLog.info('header image uploaded', { url: featureImageUrl });
-        }
-      }
+      featureImageUrl = await fetchHeaderImage(parsed.topHeadline, env.PEXELS_API_KEY);
     } catch (imgError) {
       pubLog.warn('header image failed — continuing without it', {
         error: imgError instanceof Error ? imgError.message : String(imgError),
       });
     }
 
-    const [ghostOk, beehiivOk] = await Promise.all([
-      publishToGhost(message, parsed, env, featureImageUrl),
+    const [mymcpshelfOk, beehiivOk] = await Promise.all([
+      publishToMymcpshelf(message, parsed, env),
       publishToBeehiiv(message, parsed, env, featureImageUrl),
     ]);
 
     await metrics.set('published_at', Date.now());
-    if (ghostOk) await metrics.set('ghost_ok', true);
+    if (mymcpshelfOk) await metrics.set('mymcpshelf_ok', true);
     if (beehiivOk) await metrics.set('beehiiv_ok', true);
 
-    // Ghost is required — always retry if it failed, regardless of Beehiiv
-    if (!ghostOk) {
-      pubLog.error('ghost publish failed — will retry', { generate_id: message.generateId });
-      throw new Error(`Ghost publish failed for ${message.generateId} — retrying`);
+    // mymcpshelf is required — always retry if it failed, regardless of Beehiiv
+    if (!mymcpshelfOk) {
+      pubLog.error('mymcpshelf publish failed — will retry', { generate_id: message.generateId });
+      throw new Error(`mymcpshelf publish failed for ${message.generateId} — retrying`);
     }
 
     if (!beehiivOk) {
-      pubLog.warn('beehiiv failed — ghost succeeded, continuing', { generate_id: message.generateId });
+      pubLog.warn('beehiiv failed — mymcpshelf succeeded, continuing', { generate_id: message.generateId });
     }
 
     pubLog.info('publish complete', {
       generate_id: message.generateId,
-      ghost: ghostOk,
+      mymcpshelf: mymcpshelfOk,
       beehiiv: beehiivOk,
     });
   }

@@ -69,6 +69,13 @@ bucket_name = "ainewsletter"
 binding = "INGEST_STATE"
 id = "d858fcdf0fc84221908e17c523f05aa6"
 
+# mymcpshelf's D1 database, cross-bound so publish can write blog posts
+# directly without git/GitHub API — this Worker never touches that repo.
+[[d1_databases]]
+binding = "MYMCPSHELF_DB"
+database_name = "mcp-directory"
+database_id = "527bf637-7aba-4719-8d39-b9e6e614a3b9"
+
 # Secrets (set via wrangler secret put)
 # - FIRECRAWL_API_KEY
 # - ANTHROPIC_API_KEY
@@ -79,11 +86,10 @@ id = "d858fcdf0fc84221908e17c523f05aa6"
 # - PARALLEL_API_KEY
 # - PARALLEL_MONITOR_RESEARCH_ID
 # - PARALLEL_MONITOR_STARTUP_ID
-# - GHOST_ADMIN_API_KEY
-# - GHOST_API_URL
 # - BEEHIIV_API_KEY
 # - BEEHIIV_PUBLICATION_ID
 # - IDEOGRAM_API_KEY             (optional)
+# - PEXELS_API_KEY               (optional — header images for D1 posts)
 # - SURREALDB_URL
 # - SURREALDB_NS
 # - SURREALDB_DB

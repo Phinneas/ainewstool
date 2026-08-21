@@ -87,6 +87,17 @@ declare global {
     list_complete: boolean;
     cursor?: string;
   }
+
+  interface D1PreparedStatement {
+    bind(...values: unknown[]): D1PreparedStatement;
+    run(): Promise<{ success: boolean }>;
+    first<T = unknown>(): Promise<T | null>;
+    all<T = unknown>(): Promise<{ results: T[]; success: boolean }>;
+  }
+
+  type D1Database = {
+    prepare(query: string): D1PreparedStatement;
+  };
 }
 
 export {};
