@@ -40,12 +40,14 @@ const FeedSchema = z.object({
   sourceName: z.string(),
   feedType: z.enum(["newsletter", "article", "subreddit", "tutorial", "research"]),
   feedUrl: z.string().url(),
-  format: z.enum(["rss", "json", "scraped_page"]),
-  httpUrl: z.string().url().optional(),
+  feedType: z.enum(["newsletter", "article", "subreddit", "tutorial", "research", 
+                  "developer-tool", "agent-framework", "research-explainer", 
+                  "technical-explainer", "mcp-tool"]),  httpUrl: z.string().url().optional(),
   subreddit: z.string().optional(),
   articlePathPrefix: z.string().optional(),
-  category: z.enum(["newsletter", "json", "reddit", "blog", "news", "substack", "tutorial", "research"]),
-  enabled: z.boolean(),
+  category: z.enum(["newsletter", "json", "reddit", "blog", 
+                  "news", "substack", "tutorial", "research", "github", 
+                  "agent-frameworks", "research-explainers", "how-it-works", "mcp"]),  enabled: z.boolean(),
   disabledReason: z.string().optional(),
 });
 
@@ -137,6 +139,26 @@ export const TUTORIAL_FEEDS: FeedDefinition[] = standardFeeds.filter(
 
 export const RESEARCH_FEEDS: FeedDefinition[] = standardFeeds.filter(
   (f) => f.category === "research"
+); 
+
+export const GITHUB_FEEDS: FeedDefinition[] = standardFeeds.filter(
+  (f) => f.category === "github"
+);
+
+export const AGENT_FRAMEWORK_FEEDS: FeedDefinition[] = standardFeeds.filter(
+  (f) => f.category === "agent-frameworks"
+);
+
+export const RESEARCH_EXPLAINER_FEEDS: FeedDefinition[] = standardFeeds.filter(
+  (f) => f.category === "research-explainers"
+);
+
+export const HOW_IT_WORKS_FEEDS: FeedDefinition[] = standardFeeds.filter(
+  (f) => f.category === "how-it-works"
+);
+
+export const MCP_FEEDS: FeedDefinition[] = standardFeeds.filter(
+  (f) => f.category === "mcp"
 );
 
 export const ALL_FEEDS: FeedDefinition[] = enabledFeeds;
