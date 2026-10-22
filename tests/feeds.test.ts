@@ -65,17 +65,22 @@ describe("feed definitions (loaded from feeds.json)", () => {
   });
 
   it("ALL_FEEDS contains all feeds combined (including scraped_page feeds)", () => {
-    expect(ALL_FEEDS).toHaveLength(
-      NEWSLETTER_FEEDS.length +
-        JSON_FEEDS.length +
-        REDDIT_FEEDS.length +
-        BLOG_FEEDS.length +
-        NEWS_FEEDS.length +
-        SUBSTACK_FEEDS.length +
-        TUTORIAL_FEEDS.length +
-        RESEARCH_FEEDS.length +
-        SCRAPED_PAGE_FEEDS.length
-    );
+   expect(ALL_FEEDS).toHaveLength(
+  NEWSLETTER_FEEDS.length +
+    JSON_FEEDS.length +
+    REDDIT_FEEDS.length +
+    BLOG_FEEDS.length +
+    NEWS_FEEDS.length +
+    SUBSTACK_FEEDS.length +
+    TUTORIAL_FEEDS.length +
+    RESEARCH_FEEDS.length +
+    SCRAPED_PAGE_FEEDS.length +
+    GITHUB_FEEDS.length +
+    AGENT_FRAMEWORK_FEEDS.length +
+    RESEARCH_EXPLAINER_FEEDS.length +
+    HOW_IT_WORKS_FEEDS.length +
+    MCP_FEEDS.length
+);
   });
 
   it("all blog feeds have feedType 'article'", () => {
