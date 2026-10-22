@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+import {
   NEWSLETTER_FEEDS,
   JSON_FEEDS,
   REDDIT_FEEDS,
@@ -11,6 +12,11 @@ import {
   SCRAPED_PAGE_FEEDS,
   ALL_FEEDS,
   DOMAIN_SOURCE_MAP,
+  GITHUB_FEEDS,
+  AGENT_FRAMEWORK_FEEDS,
+  RESEARCH_EXPLAINER_FEEDS,
+  HOW_IT_WORKS_FEEDS,
+  MCP_FEEDS,
 } from "../src/ingest/feeds.js";
 
 describe("feed definitions (loaded from feeds.json)", () => {
