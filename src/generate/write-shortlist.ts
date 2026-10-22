@@ -53,7 +53,8 @@ Example quick_scribbles format:
   const response = await chatWithClaude({
     system: "You are an expert AI newsletter writer. Always respond with valid JSON. You must include ALL stories in the summary.",
     prompt,
-    maxTokens: 2048,
+    maxTokens: 8192,
+    effort: "low",
   });
 
   const ShortlistSchema = z.object({

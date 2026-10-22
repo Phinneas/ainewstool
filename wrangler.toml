@@ -4,6 +4,39 @@ main = "src/worker/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# Plain (non-secret) vars. Changing these is a config deploy, not a code change.
+[vars]
+# Claude model for stages 5-6. Pinned snapshot IDs only — every ID from the 4.6
+# generation on is a pinned snapshot, so this does not drift.
+#   claude-sonnet-5-5       current default ($2/$10 per MTok, 1M ctx)
+#   claude-sonnet-4-6       standing fallback (accepts thinking:{type:'disabled'})
+# Do NOT set claude-sonnet-4-5-20250929 — its retirement commitment expired
+# 2026-09-29 and it is $3/$15, i.e. 50% more expensive than 5.5.
+ANTHROPIC_MODEL = "claude-sonnet-5-5"
+
+# Stage 3 relevance provider:
+#   mistral — previous behaviour (Mistral Small, chat + JSON parse)
+#   shadow  — calls BOTH, acts on Mistral, logs the Jev answer for calibration
+#   jev     — Jev decides (typesafe/jev-1.13 via OpenRouter)  <-- ACTIVE
+# Rollback is setting this back to "mistral" and redeploying — no code revert.
+# Note: RELEVANCE_THRESHOLD below has never been measured against real traffic.
+# Watch the `relevant` / `rejected` metrics on the first run against historical
+# baseline; a big drop in `relevant` means the threshold is too strict.
+EVAL_PROVIDER = "jev"
+
+# Jev noul cut point. Deliberately below 0.5: the Mistral prompt said "be
+# reasonably inclusive", and that sentence WAS the threshold. A false accept
+# costs one slot in stage 5's shortlist (which filters again); a false reject
+# is cached for 24h and the story is gone from that issue. Tune from the
+# `shadow jev comparison` logs before flipping EVAL_PROVIDER to "jev".
+RELEVANCE_THRESHOLD = "0.35"
+
+# Char cap on article content before it reaches Jev (32K token context; a
+# larger payload 413s). 60k chars is deliberately conservative — Jev's
+# tokenizer is unpublished. Calibrate from `jev_input_tokens` vs article size
+# in shadow mode, then set this to ~85% of 32k tokens.
+STATE_CHAR_BUDGET = "60000"
+
 # Scheduled triggers (runs on Cloudflare, no computer needed)
 [triggers]
 crons = [
@@ -81,6 +114,7 @@ database_id = "527bf637-7aba-4719-8d39-b9e6e614a3b9"
 # - ANTHROPIC_API_KEY
 # - MISTRAL_API_KEY
 # - MOONSHOT_API_KEY
+# - OPENROUTER_API_KEY           (required only when EVAL_PROVIDER is jev|shadow)
 # - EXA_API_KEY
 # - TAVILY_API_KEY
 # - PARALLEL_API_KEY

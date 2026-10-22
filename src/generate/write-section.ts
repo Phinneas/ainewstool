@@ -43,6 +43,7 @@ ${externalSourceContent || "N/A"}`;
     system: WRITE_SECTION_SYSTEM,
     prompt,
     maxTokens: 8192,
+    effort: "medium",
   });
 
   const SectionSchema = z.object({

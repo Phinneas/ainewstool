@@ -32,6 +32,7 @@ export interface Env {
   ANTHROPIC_API_KEY: string;
   MISTRAL_API_KEY: string;
   MOONSHOT_API_KEY: string;
+  OPENROUTER_API_KEY?: string;
   EXA_API_KEY?: string;
   TAVILY_API_KEY?: string;
   PARALLEL_API_KEY?: string;
@@ -44,6 +45,17 @@ export interface Env {
   IDEOGRAM_API_KEY?: string;
   /** Optional — header images for mymcpshelf D1 posts via Pexels. */
   PEXELS_API_KEY?: string;
+
+  // Plain vars — set in wrangler.toml [vars], so changing them is a config
+  // deploy rather than a code change.
+  /** Claude model for stages 5-6. */
+  ANTHROPIC_MODEL?: string;
+  /** Stage 3 relevance provider: mistral | jev | shadow. */
+  EVAL_PROVIDER?: string;
+  /** Jev noul cut point. Deliberately below 0.5 — see SPEC-judge-with-jev. */
+  RELEVANCE_THRESHOLD?: string;
+  /** Char cap on article content before it reaches Jev's 32K context. */
+  STATE_CHAR_BUDGET?: string;
 
   // SurrealDB
   SURREALDB_URL?: string;

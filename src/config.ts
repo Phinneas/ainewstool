@@ -26,9 +26,13 @@ export const config = {
   },
   anthropic: {
     apiKey: isWorker ? '' : (process.env.ANTHROPIC_API_KEY || ''),
+    model: isWorker ? '' : (process.env.ANTHROPIC_MODEL || ''),
   },
   mistral: {
     apiKey: isWorker ? '' : (process.env.MISTRAL_API_KEY || ''),
+  },
+  openrouter: {
+    apiKey: isWorker ? '' : (process.env.OPENROUTER_API_KEY || ''),
   },
   moonshot: {
     apiKey: isWorker ? '' : (process.env.MOONSHOT_API_KEY || ''),

@@ -46,6 +46,7 @@ export async function handleGenerateQueue(
       }
 
       apiKeys.anthropic = env.ANTHROPIC_API_KEY;
+      apiKeys.anthropicModel = env.ANTHROPIC_MODEL ?? '';
       apiKeys.mistral = env.MISTRAL_API_KEY;
       apiKeys.moonshot = env.MOONSHOT_API_KEY;
       apiKeys.ideogram = env.IDEOGRAM_API_KEY ?? '';

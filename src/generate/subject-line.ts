@@ -31,6 +31,7 @@ ${SUBJECT_LINE_EXAMPLES}`;
     system: SUBJECT_LINE_SYSTEM,
     prompt,
     maxTokens: 4096,
+    effort: "low",
   });
 
   const SubjectLineSchema = z.object({

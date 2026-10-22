@@ -32,6 +32,7 @@ ${storySections}`;
     system: WRITE_INTRO_SYSTEM,
     prompt,
     maxTokens: 4096,
+    effort: "low",
   });
 
   const IntroSchema = z.object({

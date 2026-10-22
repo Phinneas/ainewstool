@@ -8,6 +8,11 @@ import {
   SUBSTACK_FEEDS,
   TUTORIAL_FEEDS,
   RESEARCH_FEEDS,
+  GITHUB_FEEDS,
+  AGENT_FRAMEWORK_FEEDS,
+  RESEARCH_EXPLAINER_FEEDS,
+  HOW_IT_WORKS_FEEDS,
+  MCP_FEEDS,
   SCRAPED_PAGE_FEEDS,
   ALL_FEEDS,
   DOMAIN_SOURCE_MAP,
@@ -74,6 +79,11 @@ describe("feed definitions (loaded from feeds.json)", () => {
         SUBSTACK_FEEDS.length +
         TUTORIAL_FEEDS.length +
         RESEARCH_FEEDS.length +
+        GITHUB_FEEDS.length +
+        AGENT_FRAMEWORK_FEEDS.length +
+        RESEARCH_EXPLAINER_FEEDS.length +
+        HOW_IT_WORKS_FEEDS.length +
+        MCP_FEEDS.length +
         SCRAPED_PAGE_FEEDS.length
     );
   });

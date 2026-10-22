@@ -6,8 +6,13 @@ declare global {
   var __apiKeys: {
     anthropic: string;
     mistral: string;
+    openrouter: string;
     moonshot: string;
     ideogram: string;
+    // Not a secret — a plain wrangler var. It lives here because `config` is
+    // frozen at module load, which is '' in the Worker, so anything sourced
+    // from env at invocation time has to ride this global.
+    anthropicModel: string;
   };
 }
 
@@ -16,8 +21,10 @@ if (!globalThis.__apiKeys) {
   globalThis.__apiKeys = {
     anthropic: '',
     mistral: '',
+    openrouter: '',
     moonshot: '',
     ideogram: '',
+    anthropicModel: '',
   };
 }
 

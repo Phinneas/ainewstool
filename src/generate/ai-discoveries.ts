@@ -121,7 +121,8 @@ Respond with valid JSON:
       system:
         "You are a tech journalist curating trending AI news. Always verify that the 3 selected stories come from 3 different domains before responding. Always respond with valid JSON.",
       prompt,
-      maxTokens: 2048,
+      maxTokens: 8192,
+      effort: "low",
     });
 
     const Schema = z.object({

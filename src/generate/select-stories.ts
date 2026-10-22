@@ -49,6 +49,7 @@ ${previousSection}`;
     system: SELECT_STORIES_SYSTEM,
     prompt,
     maxTokens: 8192,
+    effort: "medium",
   });
 
   const StorySelectionSchema = z.object({

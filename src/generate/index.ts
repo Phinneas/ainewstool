@@ -176,7 +176,7 @@ export async function generateNewsletter(
     throw new Error(`No content found for date range: ${dates.join(", ")}`);
   }
 
-  // Step 2: Select top stories via Kimi K2
+  // Step 2: Select top stories via Claude
   log.info("Selecting top stories...");
   const selectTimer = log.timer("select-stories");
   const selection = await selectTopStories(entries, previousNewsletter);
@@ -186,7 +186,7 @@ export async function generateNewsletter(
     log.info(`  - ${story.title}`);
   }
 
-  // Step 3: Generate subject line via Kimi K2
+  // Step 3: Generate subject line via Claude
   log.info("Generating subject line...");
   const subjectTimer = log.timer("subject-line");
   const subjectResult = await generateSubjectLine(selection.stories, entries, displayDate);

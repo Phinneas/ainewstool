@@ -14,10 +14,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "worker:dev": "wrangler dev src/worker/index.ts",
-    "worker:deploy:dev": "wrangler deploy src/worker/index.ts --env dev",
-    "worker:deploy:prod": "wrangler deploy src/worker/index.ts --env production",
+    "worker:deploy": "wrangler deploy src/worker/index.ts",
     "worker:setup": "./wrangler-setup.sh",
-    "worker:tail": "wrangler tail --env dev",
+    "worker:tail": "wrangler tail",
     "worker:trigger": "curl -X POST http://localhost:8787/trigger",
     "worker:test": "tsx src/worker/test-manual.ts"
   },
