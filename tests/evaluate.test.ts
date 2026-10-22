@@ -66,7 +66,7 @@ describe("evaluateContentRelevance", () => {
 
     const result = await evaluateContentRelevance("some content");
     expect(result.isRelevant).toBe(false);
-    expect(result.reasoning).toBe("Failed to parse");
+    expect(result.reasoning).toBe("Failed to parse LLM response");
   });
 
   it("returns isRelevant=false when LLM returns malformed JSON", async () => {
